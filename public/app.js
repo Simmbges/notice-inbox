@@ -28,18 +28,6 @@ const validDay = (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value) && local
 let toastTimer;
 let undoAction = null;
 
-function demoNotices() {
-  const examples = [
-    ['课程学习', '高等数学：本周练习提交说明', '整理本周练习，提交前检查题号和文件命名。', '课程教学组', 2, '本通知为自编演示内容。\n\n请完成本周练习，并在截止日期前整理提交。文件命名建议包含课程名称、姓名和练习编号。\n\n实际要求请以你的课程通知为准。', '本课程学生', '课程学习平台'],
-    ['校园活动', '周末读书交流：带一本想分享的书', '一次轻松的阅读分享，提前准备一个想讨论的问题。', '阅读社团', 4, '本通知为自编演示内容。\n\n活动内容：每位参与者分享一本书及一个印象深刻的片段。\n准备事项：带书或准备文字摘录。\n\n具体活动信息仅用于展示页面功能。', '感兴趣的同学', '校园活动空间'],
-    ['竞赛报名', '学生创意作品展示征集', '提交作品简介与展示材料，分享一个真实完成的小项目。', '学生创新社团', 7, '本通知为自编演示内容。\n\n征集内容：学习工具、设计作品或小型实践项目。\n提交材料：作品简介、过程记录和成果展示。\n\n这不是实际赛事通知。', '在校学生', '线上提交'],
-    ['校园事务', '图书借阅：记得检查到期时间', '查看个人借阅记录，及时处理需要归还或续借的图书。', '图书服务台', 1, '本通知为自编演示内容。\n\n请查看自己的借阅记录，确认图书到期时间。需要续借时，请按实际图书馆规则办理。', '借阅图书的同学', '图书馆'],
-    ['课程学习', '小组课堂展示：分工与材料准备', '确认主讲、资料整合和演示设备，给排练留出时间。', '课程教师', 10, '本通知为自编演示内容。\n\n准备清单：\n1. 明确展示主题和分工。\n2. 整理引用来源与讲解材料。\n3. 完成一次排练并核对展示时长。', '课程小组成员', '课程教室'],
-    ['其他通知', '校园学习资料整理小贴士', '把课程文件按名称和周次归档，回看时更容易找到。', '学习交流小组', null, '本通知为自编演示内容。\n\n可以尝试按课程建立文件夹，给资料使用一致的命名，并保存重要通知的原文。\n这是一条没有截止日期的信息示例。', '所有同学', '']
-  ];
-  return examples.map((e, i) => ({ id: `demo-${i + 1}`, category: e[0], title: e[1], summary: e[2], sourceName: e[3], deadline: e[4] === null ? '' : offsetDay(e[4]), content: e[5], audience: e[6], location: e[7], publishedAt: offsetDay(-i), sourceUrl: '', createdAt: Date.now() - i * 3600000, read: i === 4, favorite: i === 0 || i === 2, isDemo: true }));
-}
-
 function normalizeNotice(raw) {
   if (!raw || typeof raw.title !== 'string' || !raw.title.trim() || typeof raw.content !== 'string' || !raw.content.trim()) throw new Error('每条通知都需要标题和正文。');
   const text = (key, max = 20000) => typeof raw[key] === 'string' ? raw[key].trim().slice(0, max) : '';
@@ -47,23 +35,78 @@ function normalizeNotice(raw) {
   if (!validDay(deadline) || !validDay(publishedAt)) throw new Error('通知日期格式需要为 YYYY-MM-DD，并且是有效日期。');
   const sourceUrl = text('sourceUrl', 2000);
   if (sourceUrl && !safeURL(sourceUrl)) throw new Error('原文链接需要使用 http:// 或 https://。');
-  return { id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 160) : crypto.randomUUID(), title: text('title', 120), content: text('content'), summary: text('summary', 240), category: CATEGORIES.some(c => c.name === raw.category) ? raw.category : '其他通知', sourceName: text('sourceName', 80), sourceUrl, deadline, publishedAt, audience: text('audience', 120), location: text('location', 120), createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(), read: raw.read === true, favorite: raw.favorite === true, isDemo: raw.isDemo === true };
+  return { id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 160) : crypto.randomUUID(), title: text('title', 120), content: text('content'), summary: text('summary', 240), category: CATEGORIES.some(c => c.name === raw.category) ? raw.category : '其他通知', sourceName: text('sourceName', 80), sourceUrl, deadline, publishedAt, audience: text('audience', 120), location: text('location', 120), createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(), read: raw.read === true, favorite: raw.favorite === true, isDemo: raw.isDemo === true, importedBy: text('importedBy', 20) };
 }
 
 function loadNotices() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === null) { const samples = demoNotices(); localStorage.setItem(STORAGE_KEY, JSON.stringify(samples)); return samples; }
+    if (saved === null) return [];
     const values = JSON.parse(saved);
     if (!Array.isArray(values)) throw new Error();
     return values.map(normalizeNotice);
   } catch { setTimeout(() => toast('无法读取浏览器中的记录，可以导入备份恢复。'), 0); return []; }
 }
-let notices = loadNotices();
+const legacyNotices = loadNotices().filter(n => !n.isDemo);
+let notices = [], serverReady = false, fetching = false, writing = false;
 
-function persist() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(notices)); return true; }
-  catch { toast('浏览器未能保存，请导出备份。当前页面仍可查看。'); return false; }
+async function api(method = 'GET', body) {
+  const response = await fetch('/api/notices', { method, credentials: 'same-origin', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
+  if (response.redirected || response.status === 401) throw new Error('登录已失效，请重新打开网页登录。');
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || '通知服务暂时不可用。');
+  return data;
+}
+
+async function refreshNotices(announce = false, notifyNew = true) {
+  if (fetching || writing) return;
+  fetching = true;
+  try {
+    const result = await api();
+    const incoming = result.notices.map(normalizeNotice);
+    const known = new Set(notices.map(n => n.id));
+    const added = incoming.filter(n => !known.has(n.id)).length;
+    const wasReady = serverReady;
+    serverReady = true;
+    if (JSON.stringify(incoming) !== JSON.stringify(notices)) { notices = incoming; render(); }
+    const signature = n => JSON.stringify([n.title, n.content, n.sourceUrl].map(s => s.replace(/\s+/g, ' ').trim()));
+    const existing = new Set(incoming.flatMap(n => [n.id, signature(n)]));
+    const remaining = legacyNotices.filter(n => !existing.has(n.id) && !existing.has(signature(n)));
+    $('migration-banner').hidden = !remaining.length;
+    $('migration-message').textContent = `本浏览器有 ${remaining.length} 条旧版通知尚未迁移，可以保存到当前登录的账号。原有本地数据会保留。`;
+    $('sync-status').textContent = '已连接通知库 · 每 5 秒自动刷新';
+    $('sync-status').classList.remove('sync-error');
+    if (announce) toast('已刷新通知库');
+    else if (notifyNew && wasReady && added) toast(`收到 ${added} 条新通知`);
+  } catch (error) {
+    serverReady = false;
+    $('sync-status').textContent = '连接失败，点击“立即刷新”重试';
+    $('sync-status').classList.add('sync-error');
+    if (announce) toast(error.message);
+  } finally { fetching = false; }
+}
+
+async function writeNotices(button, action) {
+  if (!serverReady) { toast('通知库尚未连接，请先刷新或重新登录。'); return; }
+  if (writing) { toast('正在保存，请稍后。'); return; }
+  writing = true;
+  if (button) button.disabled = true;
+  let succeeded = false;
+  try { await action(); succeeded = true; }
+  catch (error) { toast(error.message || '保存失败，请稍后重试。'); }
+  finally { writing = false; if (button) button.disabled = false; }
+  if (succeeded) await refreshNotices(false, false);
+}
+
+async function importBatches(incoming) {
+  let imported = 0, skipped = 0;
+  for (let i = 0; i < incoming.length; i += 50) {
+    try {
+      const result = await api('POST', { notices: incoming.slice(i, i + 50) });
+      imported += result.imported; skipped += result.skipped;
+    } catch (error) { throw new Error(`已保存 ${imported} 条、跳过 ${skipped} 条。${error.message} 可重试，已有通知不会重复导入。`); }
+  }
+  return { imported, skipped };
 }
 
 function toast(message, undo = null) {
@@ -130,7 +173,7 @@ function openForm(id = null) {
   form.elements.namedItem('title').focus();
 }
 
-document.addEventListener('click', (event) => {
+document.addEventListener('click', async (event) => {
   const button = event.target.closest('button');
   if (!button) return;
   if (button.dataset.view) { state.view = button.dataset.view; state.category = ''; render(); return; }
@@ -141,40 +184,46 @@ document.addEventListener('click', (event) => {
   const n = notices.find(n => n.id === button.dataset.id);
   if (!n) return;
   if (action === 'select') { state.selected = n.id; render(); if (innerWidth <= 1000) $('detail-panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }); }
-  if (action === 'favorite') { n.favorite = !n.favorite; persist(); render(); }
-  if (action === 'read') { n.read = !n.read; persist(); render(); }
+  if (action === 'favorite') await writeNotices(button, () => api('PATCH', { id: n.id, patch: { favorite: !n.favorite } }));
+  if (action === 'read') await writeNotices(button, () => api('PATCH', { id: n.id, patch: { read: !n.read } }));
   if (action === 'edit') openForm(n.id);
   if (action === 'delete') {
-    const index = notices.indexOf(n);
-    notices.splice(index, 1);
-    const saved = persist(); render();
-    if (saved) toast('通知已删除', () => { notices.splice(Math.min(index, notices.length), 0, n); state.selected = n.id; persist(); render(); toast('已恢复通知'); });
+    await writeNotices(button, async () => {
+      await api('DELETE', { ids: [n.id] });
+      toast('通知已删除', () => writeNotices(null, async () => { await api('POST', { notices: [n] }); state.selected = n.id; toast('已恢复通知'); }));
+    });
   }
 });
 
 $('add-notice').addEventListener('click', () => openForm());
 ['close-dialog', 'cancel-dialog'].forEach(id => $(id).addEventListener('click', () => $('notice-dialog').close()));
-$('notice-form').addEventListener('submit', (event) => {
+$('notice-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const fields = Object.fromEntries(new FormData(event.currentTarget));
-  try {
+  await writeNotices($('save-notice'), async () => {
     const existing = notices.find(n => n.id === state.editing);
     const notice = normalizeNotice({ ...existing, ...fields, id: existing?.id || crypto.randomUUID(), isDemo: false });
-    if (existing) notices[notices.indexOf(existing)] = notice; else notices.unshift(notice);
+    if (existing) await api('PATCH', { id: existing.id, patch: { ...fields, isDemo: false } });
+    else {
+      const result = await api('POST', { notices: [notice] });
+      if (result.skipped) { state.selected = result.duplicates[0].id; $('notice-dialog').close(); toast('通知已存在，已跳过重复记录'); return; }
+    }
     state.selected = notice.id; state.view = 'all'; state.category = ''; state.query = ''; $('search').value = '';
-    const saved = persist(); $('notice-dialog').close(); render();
-    if (saved) toast(existing ? '通知已更新' : '通知已添加，已保存在当前浏览器');
-  } catch (error) { toast(error.message); }
+    $('notice-dialog').close();
+    toast(existing ? '通知已更新' : '通知已保存到云端');
+  });
 });
 $('search').addEventListener('input', (event) => { state.query = event.target.value.trim(); render(); });
 $('sort').addEventListener('change', (event) => { state.sort = event.target.value; render(); });
 $('empty-action').addEventListener('click', () => {
   if (state.query || state.category || state.view !== 'all') { state.query = ''; state.category = ''; state.view = 'all'; $('search').value = ''; render(); } else openForm();
 });
-$('remove-examples').addEventListener('click', () => {
-  const removed = notices.filter(n => n.isDemo); notices = notices.filter(n => !n.isDemo);
-  const saved = persist(); render();
-  if (saved) toast('示例通知已移除', () => { notices.push(...removed); persist(); render(); toast('已恢复示例通知'); });
+$('remove-examples').addEventListener('click', async () => {
+  const removed = notices.filter(n => n.isDemo);
+  await writeNotices($('remove-examples'), async () => {
+    for (let i = 0; i < removed.length; i += 50) await api('DELETE', { ids: removed.slice(i, i + 50).map(n => n.id) });
+    toast('示例通知已移除', () => writeNotices(null, async () => { await importBatches(removed); toast('已恢复示例通知'); }));
+  });
 });
 $('undo-button').addEventListener('click', () => { const action = undoAction; undoAction = null; action?.(); });
 $('export-button').addEventListener('click', () => {
@@ -189,15 +238,27 @@ $('import-file').addEventListener('change', async (event) => {
     const imported = JSON.parse(await file.text());
     if (imported.version !== 1 || !Array.isArray(imported.notices)) throw new Error('请选择知会导出的 JSON 备份文件。');
     const incoming = imported.notices.map(normalizeNotice);
-    const known = new Set(notices.map(n => n.id));
-    const fresh = incoming.filter(n => { if (known.has(n.id)) return false; known.add(n.id); return true; });
-    notices.push(...fresh);
-    const saved = persist(); render(); if (saved) toast(`已导入 ${fresh.length} 条通知，跳过 ${incoming.length - fresh.length} 条已有记录`);
+    await writeNotices($('import-button'), async () => { const result = await importBatches(incoming); toast(`已保存 ${result.imported} 条通知，跳过 ${result.skipped} 条已有记录`); });
   } catch (error) { toast(error instanceof SyntaxError ? '文件不是有效的 JSON，请检查备份。' : error.message); }
   event.target.value = '';
 });
 $('today-label').textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
+if (legacyNotices.length) {
+  $('migration-banner').hidden = false;
+  $('migration-message').textContent = `本浏览器有 ${legacyNotices.length} 条旧版通知，可以迁移到当前登录的账号。原有本地数据会保留。`;
+}
+$('migrate-notices').addEventListener('click', () => writeNotices($('migrate-notices'), async () => {
+  const result = await importBatches(legacyNotices);
+  $('migration-banner').hidden = true;
+  toast(`迁移完成：保存 ${result.imported} 条，跳过 ${result.skipped} 条重复通知`);
+}));
+$('refresh-notices').addEventListener('click', () => refreshNotices(true));
+$('connect-agent').addEventListener('click', () => { $('mcp-address').value = `${location.origin}/mcp`; $('agent-dialog').showModal(); });
+$('close-agent').addEventListener('click', () => $('agent-dialog').close());
+$('copy-mcp').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('mcp-address').value); toast('服务地址已复制'); } catch { $('mcp-address').select(); toast('请复制选中的服务地址'); } });
 render();
+refreshNotices();
+setInterval(() => { if (!document.hidden) refreshNotices(); }, 5000);
 // 午夜后或重新回到页面时，刷新截止状态。
 setInterval(render, 60000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); refreshNotices(); } });

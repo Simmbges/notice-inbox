@@ -1,15 +1,4 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#6156d9">
-  <meta name="description" content="把零散的校园通知集中整理，轻松查看、搜索和收藏。">
-  <title>知会 · 校园通知整理</title>
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./app.js" defer></script>
-</head>
-<body>
+
   <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
@@ -44,7 +33,7 @@
       </nav>
       <p class="nav-label category-label">通知分类</p>
       <nav id="category-nav" aria-label="通知分类"></nav>
-      <div class="sidebar-bottom"><span class="storage-dot"></span><div>保存在当前浏览器<small>定期导出，留一份备份。</small></div></div>
+      <div class="sidebar-bottom"><span class="storage-dot"></span><div>通知保存在云端<small>Agent 导入后自动显示。</small></div></div>
     </aside>
 
     <main class="workspace">
@@ -59,7 +48,9 @@
 
       <div id="demo-banner" class="demo-banner" hidden><span><span class="demo-pill">示例</span>下面的通知为自编演示内容，可以添加自己的通知开始使用。</span><button id="remove-examples" class="text-button">移除示例</button></div>
 
-      <section class="content-layout">
+      <div class="sync-banner"><span id="sync-status" role="status" aria-live="polite">正在连接通知库…</span><div><button id="refresh-notices" class="text-button">立即刷新</button><button id="connect-agent" class="button secondary">连接 Agent</button></div></div>
+<div id="migration-banner" class="demo-banner" hidden><span id="migration-message"></span><button id="migrate-notices" class="text-button">迁移到当前账号</button></div>
+<section class="content-layout">
         <div class="notice-section">
           <div class="section-heading"><div><h2 id="list-heading">全部通知</h2><span id="result-count" class="result-count"></span></div><div class="data-actions"><button id="import-button" class="icon-button" title="导入 JSON 备份" aria-label="导入 JSON 备份"><svg class="icon"><use href="#i-up"/></svg></button><button id="export-button" class="icon-button" title="导出 JSON 备份" aria-label="导出 JSON 备份"><svg class="icon"><use href="#i-down"/></svg></button></div></div>
           <div class="filter-bar"><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="搜索标题、正文或发布单位" aria-label="搜索通知"></label><select id="sort" aria-label="通知排序"><option value="newest">最近添加</option><option value="deadline">截止日期优先</option><option value="oldest">最早添加</option></select></div>
@@ -69,7 +60,7 @@
         </div>
         <aside id="detail-panel" class="detail-panel" aria-label="通知详情"></aside>
       </section>
-      <footer class="page-footer"><span>知会 · 让重要的信息，容易找到。</span><span>手动整理 · 本地保存</span></footer>
+      <footer class="page-footer"><span>知会 · 让重要的信息，容易找到。</span><span>Agent 导入 · 云端保存</span></footer>
     </main>
   </div>
 
@@ -88,5 +79,4 @@
   </form></dialog>
   <input id="import-file" type="file" accept=".json,application/json" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-message"></span><button id="undo-button" type="button" hidden>撤销</button></div>
-</body>
-</html>
+<dialog id="agent-dialog" class="notice-dialog"><div class="dialog-heading"><div><span class="eyebrow">一次连接，直接入库</span><h2>连接你的 Agent</h2></div><button id="close-agent" class="icon-button" aria-label="关闭连接说明">×</button></div><div class="form-fields agent-help"><p>在支持 MCP 的 Agent 中添加下面的服务地址，并用当前账号完成授权。连接后，把通知发给 Agent，说“整理并导入知会”，即可直接保存。</p><label class="field">服务地址<input id="mcp-address" readonly aria-label="MCP 服务地址"></label><button id="copy-mcp" class="button secondary">复制服务地址</button><p>面板每 5 秒自动检查新通知。日期不确定时保持为空，通知原文会保留；重复通知会跳过。</p><p class="connection-note">连小理能否连接，需要它支持自定义 MCP 服务。仅生成文字或 JSON 不代表已入库，以工具返回的保存编号为准。</p></div></dialog>
