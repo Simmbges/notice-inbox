@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: standalone/Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_URL: https://${DOMAIN:?请在 .env 中填写 DOMAIN}
+      TRUST_PROXY: "true"
+    volumes:
+      - notice-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "const r=require('node:http').get('http://127.0.0.1:3000/healthz',{headers:{host:new URL(process.env.APP_URL).host}},s=>{s.resume();s.on('end',()=>process.exit(s.statusCode===200?0:1))});r.on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?请在 .env 中填写 DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  notice-data:
+  caddy-data:
+  caddy-config:

@@ -52,7 +52,7 @@ let notices = [], serverReady = false, fetching = false, writing = false;
 
 async function api(method = 'GET', body) {
   const response = await fetch('/api/notices', { method, credentials: 'same-origin', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
-  if (response.redirected || response.status === 401) throw new Error('登录已失效，请重新打开网页登录。');
+  if (response.redirected || response.status === 401) { if (document.body.dataset.auth === 'email') location.assign('/login'); throw new Error('登录已失效，请重新打开网页登录。'); }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || '通知服务暂时不可用。');
   return data;
@@ -210,7 +210,7 @@ $('notice-form').addEventListener('submit', async (event) => {
     }
     state.selected = notice.id; state.view = 'all'; state.category = ''; state.query = ''; $('search').value = '';
     $('notice-dialog').close();
-    toast(existing ? '通知已更新' : '通知已保存到云端');
+    toast(existing ? '通知已更新' : document.body.dataset.auth === 'email' ? '通知已保存到账号' : '通知已保存到云端');
   });
 });
 $('search').addEventListener('input', (event) => { state.query = event.target.value.trim(); render(); });
@@ -253,7 +253,7 @@ $('migrate-notices').addEventListener('click', () => writeNotices($('migrate-not
   toast(`迁移完成：保存 ${result.imported} 条，跳过 ${result.skipped} 条重复通知`);
 }));
 $('refresh-notices').addEventListener('click', () => refreshNotices(true));
-$('connect-agent').addEventListener('click', () => { $('mcp-address').value = `${location.origin}/mcp`; $('agent-dialog').showModal(); });
+$('connect-agent').addEventListener('click', () => { if (document.body.dataset.auth === 'email') { document.dispatchEvent(new Event('notice:connect-agent')); return; } $('mcp-address').value = `${location.origin}/mcp`; $('agent-dialog').showModal(); });
 $('close-agent').addEventListener('click', () => $('agent-dialog').close());
 $('copy-mcp').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('mcp-address').value); toast('服务地址已复制'); } catch { $('mcp-address').select(); toast('请复制选中的服务地址'); } });
 render();

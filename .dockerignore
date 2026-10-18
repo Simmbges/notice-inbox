@@ -1,0 +1,16 @@
+.git
+.env*
+.openai
+.sites-local
+.sites-runtime
+.wrangler
+.vinext
+node_modules
+dist
+releases
+data
+qa
+*.sqlite*
+*.tar.gz
+*.tsbuildinfo
+standalone/server.test.mjs

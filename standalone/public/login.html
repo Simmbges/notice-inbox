@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6156d9"><title>登录知会 · 校园通知整理</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/account.css"><script src="/login.js" defer></script></head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-story"><a href="/" class="auth-brand"><span class="auth-mark">知</span>知会 <small>CAMPUS INBOX</small></a><div><span class="auth-kicker">校园消息，有序安放</span><h1>让每一条重要通知，<br>都有一个清楚的位置。</h1><p>课程、活动和校园事务集中查看。<br>让你的 Agent 整理，让知会替你收好。</p><div class="auth-example"><span>通知已整理</span><strong>材料提交提醒</strong><p>保留原文 · 标明时间 · 随时查找</p></div></div><span class="auth-story-footer">从零散消息，到有条理的校园日常。</span></section>
+    <section class="auth-card"><div class="auth-intro"><span class="eyebrow">你的个人通知库</span><h2 id="auth-title">欢迎回到知会</h2><p id="auth-subtitle">使用邮箱和密码登录你的知会账号。</p></div>
+      <div class="auth-tabs" role="tablist" aria-label="登录或注册"><button id="tab-login" role="tab" aria-selected="true">登录</button><button id="tab-register" role="tab" aria-selected="false">注册账号</button></div>
+      <form id="auth-form"><label class="field">邮箱<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="你的邮箱地址" required></label><label class="field">密码<input name="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" placeholder="12 至 128 个字符" required></label><label id="confirm-field" class="field" hidden>确认密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="再次输入密码"></label><p id="auth-error" class="auth-error" role="alert" hidden></p><button id="auth-submit" type="submit" class="button primary">登录知会 <span aria-hidden="true">→</span></button></form>
+      <p class="auth-footnote">当前使用邮箱＋密码，不发送验证码。请妥善保存密码，邮件验证与密码找回尚未启用。</p>
+    </section>
+  </main>
+</body></html>

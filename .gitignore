@@ -59,3 +59,11 @@ next-env.d.ts
 /outputs/
 /work/
 *.tsbuildinfo
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/standalone/.env
+!standalone/.env.example
+/notice-inbox-standalone.zip
+/releases/

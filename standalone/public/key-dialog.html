@@ -1,0 +1,8 @@
+<dialog id="key-dialog" class="notice-dialog"><div class="dialog-heading"><div><span class="eyebrow">把整理好的通知，直接送进来</span><h2>Agent 导入密钥</h2></div><button id="close-keys" class="icon-button" aria-label="关闭密钥管理">×</button></div><div class="form-fields agent-help">
+  <p>为你的 Agent 创建一个专用密钥。它只能向你的通知库导入通知，不能查看或修改已有记录。每个密钥有效期为 90 天，可以随时撤销。</p>
+  <form id="key-form" class="key-create"><label class="field">密钥名称<input id="key-name" required maxlength="60" placeholder="例如：我的连小理"></label><button id="create-key" type="submit" class="button primary">创建密钥</button></form>
+  <section id="new-key" class="new-key" hidden><strong>请现在复制，关闭后不再显示完整密钥。</strong><label class="field">新密钥<input id="new-key-token" readonly autocomplete="off" spellcheck="false"></label><button id="copy-key" class="button secondary">复制密钥</button><p>将密钥填入 Agent 的认证配置，不要发到群聊或放进公开代码。</p></section>
+  <p id="key-message" class="key-message" role="status" aria-live="polite"></p>
+  <div><h3 class="key-heading">连接方式</h3><label class="field">MCP 服务地址<input id="key-mcp-address" readonly></label><label class="field">HTTP 导入地址<input id="key-http-address" readonly></label><p>支持 MCP 的 Agent：填写服务地址，认证方式选 Bearer Token，填入密钥。支持 HTTP 工具的 Agent：向导入地址发送 POST 请求，请求头使用 Authorization: Bearer 你的密钥。</p><p>连小理需要支持外部 MCP 或 HTTP 工具；能否接入仍需在它的平台实测。</p></div>
+  <div><h3 class="key-heading">我的密钥</h3><div id="key-list" class="key-list"></div></div>
+</div></dialog>
