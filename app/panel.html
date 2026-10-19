@@ -31,7 +31,7 @@
         <button class="nav-item" data-view="soon"><svg class="icon"><use href="#i-clock"/></svg>即将截止<span id="nav-soon" class="nav-count">0</span></button>
         <button class="nav-item" data-view="favorites"><svg class="icon"><use href="#i-star"/></svg>我的收藏<span id="nav-favorites" class="nav-count">0</span></button>
       </nav>
-      <p class="nav-label category-label">通知分类</p>
+      <div class="category-heading"><p class="nav-label category-label">通知分类</p><button id="manage-categories" type="button" class="text-button" hidden>管理</button></div>
       <nav id="category-nav" aria-label="通知分类"></nav>
       <div class="sidebar-bottom"><span class="storage-dot"></span><div>通知保存在云端<small>Agent 导入后自动显示。</small></div></div>
     </aside>
@@ -52,7 +52,7 @@
 <div id="migration-banner" class="demo-banner" hidden><span id="migration-message"></span><button id="migrate-notices" class="text-button">迁移到当前账号</button></div>
 <section class="content-layout">
         <div class="notice-section">
-          <div class="section-heading"><div><h2 id="list-heading">全部通知</h2><span id="result-count" class="result-count"></span></div><div class="data-actions"><button id="import-button" class="icon-button" title="导入 JSON 备份" aria-label="导入 JSON 备份"><svg class="icon"><use href="#i-up"/></svg></button><button id="export-button" class="icon-button" title="导出 JSON 备份" aria-label="导出 JSON 备份"><svg class="icon"><use href="#i-down"/></svg></button></div></div>
+          <div class="section-heading"><div><h2 id="list-heading">全部通知</h2><span id="result-count" class="result-count"></span></div><div class="data-actions"><button id="import-button" class="icon-button backup-button" title="导入 JSON 备份" aria-label="导入 JSON 备份"><svg class="icon"><use href="#i-up"/></svg><span>导入备份</span></button><button id="export-button" class="icon-button backup-button" title="导出 JSON 备份" aria-label="导出 JSON 备份"><svg class="icon"><use href="#i-down"/></svg><span>导出备份</span></button></div></div>
           <div class="filter-bar"><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="搜索标题、正文或发布单位" aria-label="搜索通知"></label><select id="sort" aria-label="通知排序"><option value="newest">最近添加</option><option value="deadline">截止日期优先</option><option value="oldest">最早添加</option></select></div>
           <div id="active-filter" class="active-filter" hidden></div>
           <div id="notice-list" class="notice-list"></div>
@@ -77,6 +77,10 @@
     </div>
     <div class="dialog-footer"><span>未注明的日期和信息可以留空。</span><div><button type="button" id="cancel-dialog" class="button secondary">取消</button><button type="submit" class="button primary" id="save-notice">保存通知</button></div></div>
   </form></dialog>
+  <dialog id="category-dialog" class="notice-dialog" aria-labelledby="category-dialog-title">
+    <div class="dialog-heading"><div><span class="eyebrow">按自己的习惯整理通知</span><h2 id="category-dialog-title">管理通知分类</h2></div><button id="close-categories" type="button" class="icon-button" aria-label="关闭分类管理">×</button></div>
+    <div class="form-fields"><p class="category-description">新增或重命名分类后，可在通知表单和 Agent 中使用。删除分类会将其中的通知移到“其他通知”，保留原文。</p><form id="category-form" class="category-create"><label class="field">新分类名称<input id="category-name" required maxlength="30" placeholder="例如：奖学金、实习招聘"></label><button type="submit" class="button primary">添加分类</button></form><div id="category-list" class="category-manager-list"></div></div>
+  </dialog>
   <input id="import-file" type="file" accept=".json,application/json" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-message"></span><button id="undo-button" type="button" hidden>撤销</button></div>
 <dialog id="agent-dialog" class="notice-dialog"><div class="dialog-heading"><div><span class="eyebrow">一次连接，直接入库</span><h2>连接你的 Agent</h2></div><button id="close-agent" class="icon-button" aria-label="关闭连接说明">×</button></div><div class="form-fields agent-help"><p>在支持 MCP 的 Agent 中添加下面的服务地址，并用当前账号完成授权。连接后，把通知发给 Agent，说“整理并导入知会”，即可直接保存。</p><label class="field">服务地址<input id="mcp-address" readonly aria-label="MCP 服务地址"></label><button id="copy-mcp" class="button secondary">复制服务地址</button><p>面板每 5 秒自动检查新通知。日期不确定时保持为空，通知原文会保留；重复通知会跳过。</p><p class="connection-note">连小理能否连接，需要它支持自定义 MCP 服务。仅生成文字或 JSON 不代表已入库，以工具返回的保存编号为准。</p></div></dialog>

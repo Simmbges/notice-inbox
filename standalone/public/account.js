@@ -1,7 +1,23 @@
 'use strict';
 const accountElement = id => document.getElementById(id);
 let keyLoading = false;
+let newKeyPermission = 'import';
 const dayText = value => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+const permissionText = value => ({ import: '仅导入', read: '仅查询', read_import: '查询＋导入' })[value] || '仅导入';
+function updatePermissionHelp() {
+  accountElement('key-permission-help').textContent = {
+    import: '仅导入：让 Agent 保存你发来的通知，不能读取通知库。',
+    read: '仅查询：让 Agent 搜索通知和读取原文，不能写入。',
+    read_import: '查询＋导入：允许读取当前账号的通知及原文，也能保存新通知。',
+  }[accountElement('key-permission').value];
+}
+function switchKeyPanel(id) {
+  document.querySelectorAll('[data-key-panel]').forEach(button => {
+    const active = button.dataset.keyPanel === id;
+    button.setAttribute('aria-pressed', String(active));
+    accountElement(button.dataset.keyPanel).hidden = !active;
+  });
+}
 
 async function accountRequest(path, method = 'GET', body) {
   const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
@@ -23,13 +39,13 @@ async function showKeys() {
       const info = document.createElement('div'), name = document.createElement('strong'), meta = document.createElement('small');
       name.textContent = key.name;
       const expired = key.expiresAt <= Date.now();
-      meta.textContent = `${key.prefix}… · ${key.revokedAt ? '已撤销' : expired ? '已过期' : `有效至 ${dayText(key.expiresAt)}`} · ${key.lastUsedAt ? `最近使用 ${dayText(key.lastUsedAt)}` : '尚未使用'}`;
+      meta.textContent = `${permissionText(key.permission)} · ${key.prefix}… · ${key.revokedAt ? '已撤销' : expired ? '已过期' : `有效至 ${dayText(key.expiresAt)}`} · ${key.lastUsedAt ? `最近使用 ${dayText(key.lastUsedAt)}` : '尚未使用'}`;
       info.append(name, meta); row.append(info);
       if (!key.revokedAt && !expired) {
         const revoke = document.createElement('button'); revoke.className = 'text-button'; revoke.textContent = '撤销'; revoke.setAttribute('aria-label', `撤销密钥：${key.name}`);
         revoke.addEventListener('click', async () => {
           revoke.disabled = true;
-          try { await accountRequest(`/api/agent-keys/${encodeURIComponent(key.id)}`, 'DELETE'); accountElement('key-message').textContent = '密钥已撤销，Agent 已无法使用它导入。'; await showKeys(); }
+          try { await accountRequest(`/api/agent-keys/${encodeURIComponent(key.id)}`, 'DELETE'); accountElement('key-message').textContent = '密钥已撤销，Agent 已无法使用它查询或导入。'; await showKeys(); }
           catch (error) { accountElement('key-message').textContent = error.message; revoke.disabled = false; }
         });
         row.append(revoke);
@@ -48,22 +64,38 @@ document.addEventListener('notice:connect-agent', async () => {
   accountElement('key-mcp-address').value = `${location.origin}/mcp`;
   accountElement('key-http-address').value = `${location.origin}/api/agent/notices`;
   accountElement('key-message').textContent = '';
+  switchKeyPanel('key-connect-panel');
   accountElement('key-dialog').showModal();
   try { await showKeys(); } catch (error) { accountElement('key-message').textContent = error.message; }
 });
 accountElement('close-keys').addEventListener('click', () => accountElement('key-dialog').close());
-accountElement('key-dialog').addEventListener('close', () => { accountElement('new-key-token').value = ''; accountElement('new-key').hidden = true; accountElement('key-form').reset(); });
+accountElement('key-dialog').addEventListener('close', () => { accountElement('new-key-token').value = ''; accountElement('new-key').hidden = true; accountElement('key-form').reset(); newKeyPermission = 'import'; updatePermissionHelp(); });
+document.querySelectorAll('[data-key-panel]').forEach(button => button.addEventListener('click', () => switchKeyPanel(button.dataset.keyPanel)));
+accountElement('key-permission').addEventListener('change', updatePermissionHelp);
 accountElement('key-form').addEventListener('submit', async event => {
   event.preventDefault(); accountElement('create-key').disabled = true;
   try {
-    const result = await accountRequest('/api/agent-keys', 'POST', { name: accountElement('key-name').value });
+    const result = await accountRequest('/api/agent-keys', 'POST', { name: accountElement('key-name').value, permission: accountElement('key-permission').value });
+    newKeyPermission = result.permission;
     accountElement('new-key-token').value = result.token; accountElement('new-key').hidden = false;
-    accountElement('key-message').textContent = '密钥已创建，请复制后配置到你的 Agent。';
-    accountElement('key-form').reset(); await showKeys();
+    accountElement('key-message').textContent = `密钥已创建，权限：${permissionText(result.permission)}。请复制后配置到你的 Agent。`;
+    accountElement('key-form').reset(); updatePermissionHelp(); await showKeys();
   } catch (error) { accountElement('key-message').textContent = error.message; }
   finally { accountElement('create-key').disabled = false; }
 });
 accountElement('copy-key').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(accountElement('new-key-token').value); accountElement('key-message').textContent = '密钥已复制。'; }
   catch { accountElement('new-key-token').select(); accountElement('key-message').textContent = '请复制选中的密钥。'; }
+});
+accountElement('copy-key-address').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(accountElement('key-mcp-address').value); accountElement('key-message').textContent = '服务地址已复制。'; }
+  catch { accountElement('key-mcp-address').select(); accountElement('key-message').textContent = '请复制选中的服务地址。'; }
+});
+accountElement('copy-key-config').addEventListener('click', async () => {
+  const token = accountElement('new-key-token').value;
+  if (!token) return;
+  const tools = newKeyPermission === 'import' ? 'import_notices' : newKeyPermission === 'read' ? 'list_notices、get_notice' : 'import_notices、list_notices、get_notice';
+  const prompt = `请把知会连接到当前 Agent，保留其他已有配置。\n服务地址：${accountElement('key-mcp-address').value}\n传输方式：Streamable HTTP\n认证方式：Bearer Token\n密钥：${token}\n权限：${permissionText(newKeyPermission)}；工具：${tools}。\n安全保存密钥，不在回答或项目文件中复述。验证初始化和工具发现，不要为了测试而写入通知，不要扩大权限。\n连接成功后使用 zhihui-notices skill；缺少 skill 时告诉我安装位置。区分配置已写入、连接成功、当前会话已加载工具。`;
+  try { await navigator.clipboard.writeText(prompt); accountElement('key-message').textContent = '配置提示词已复制（包含密钥），请只发给可信的 Agent。'; }
+  catch { accountElement('new-key-token').select(); accountElement('key-message').textContent = '浏览器无法复制提示词，请手动复制地址和选中的密钥。'; }
 });

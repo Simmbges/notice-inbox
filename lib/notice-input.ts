@@ -16,7 +16,7 @@ export type Notice = {
   favorite: boolean; isDemo: boolean; importedBy: string;
 };
 
-export function normalizeNotice(value: unknown, importedBy = "manual"): Notice {
+export function normalizeNotice(value: unknown, importedBy = "manual", allowedCategories = categories): Notice {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("通知必须是一个对象。");
   const raw = value as Record<string, unknown>;
   const result: Record<string, unknown> = {};
@@ -41,7 +41,7 @@ export function normalizeNotice(value: unknown, importedBy = "manual"): Notice {
       result.sourceUrl = url.href;
     } catch { throw new InputError("原文链接仅支持 HTTP 或 HTTPS。"); }
   }
-  if (raw.category !== undefined && !categories.includes(raw.category as string)) throw new InputError("请选择有效的通知分类。");
+  if (raw.category !== undefined && !allowedCategories.includes(raw.category as string)) throw new InputError(`请选择已有分类：${allowedCategories.join("、")}。可在面板中管理分类。`);
   return {
     ...result, id: typeof raw.id === "string" && raw.id.length <= 160 && raw.id ? raw.id : crypto.randomUUID(),
     category: (raw.category as string) || "其他通知",

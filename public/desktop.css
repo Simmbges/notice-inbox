@@ -1,0 +1,73 @@
+/* 桌面通知阅读：把空间留给列表和原文。 */
+@media(min-width:1001px){
+  .workspace{padding:24px 30px 18px}
+  .page-header{margin-bottom:18px;gap:16px}
+  .page-header h1{font-size:26px;margin:5px 0}
+  .page-header p,.today-label{font-size:13px;color:#69677d}
+  .stats-grid{gap:12px;margin-bottom:14px}
+  .stat-card{padding:12px 15px;gap:12px}
+  .stat-icon{width:34px;height:34px;border-radius:9px}
+  .stat-label{font-size:12px;color:#69677d;margin-bottom:5px}
+  .stat-card strong{font-size:22px}
+  .stat-note{display:none}
+  .sync-banner{padding:8px 13px;margin-bottom:18px;background:#faf9fe;font-size:12px}
+  .sync-banner .button{min-height:34px;padding:7px 12px;font-size:13px}
+  .content-layout{grid-template-columns:minmax(320px,1fr) minmax(340px,.8fr);gap:22px}
+  .section-heading{margin-bottom:14px}
+  .section-heading h2{font-size:18px}
+  .result-count,.nav-label,.nav-count{font-size:12px;color:#727084}
+  .nav-item{font-size:14px}
+  .button,.text-button{font-size:13px}
+  .search-box input,#sort{font-size:14px}
+  .filter-bar{margin-bottom:14px}
+  .notice-open{padding:19px 20px}
+  .notice-card h3{font-size:16px;line-height:1.65}
+  .card-summary{font-size:14px;line-height:1.8;color:#676479}
+  .card-footer{font-size:12px;align-items:flex-start;flex-wrap:wrap;row-gap:9px}
+  .card-source{flex-wrap:wrap;color:#727084}
+  .category-badge{font-size:12px}
+  .favorite-button{width:30px;height:30px;top:14px;right:13px}
+  .deadline-badge{color:#656174}
+  .deadline-badge.urgent{color:#9b541b;background:#fff2e4;border-radius:5px;padding:3px 6px;font-weight:600}
+  .deadline-badge.overdue{color:#777080}
+  .detail-panel{max-height:calc(100vh - 48px);display:flex;flex-direction:column}
+  .detail-heading{padding:15px 20px;flex-shrink:0}
+  .detail-heading>span{font-size:13px;color:#696478}
+  .detail-body{padding:20px;overflow-y:auto;overscroll-behavior:contain}
+  .detail-body h2{font-size:20px;line-height:1.6;margin:0 0 14px}
+  .detail-summary{font-size:14px;color:#655a81;margin-bottom:17px}
+  .detail-meta{grid-template-columns:65px minmax(0,1fr);font-size:13px;gap:9px 12px}
+  .detail-meta dt{color:#767084}
+  .detail-meta dd{color:#4e4860}
+  .content-divider{font-size:12px;color:#716a80;margin:18px 0 12px}
+  .original-content{max-height:none;overflow:visible;font-size:14px;line-height:1.95;color:#514b62}
+  .source-link{font-size:13px}
+  .detail-actions .button{font-size:13px}
+  .notice-dialog .field{font-size:13px}
+  .notice-dialog input,.notice-dialog select,.notice-dialog textarea{font-size:14px}
+  .account-bar{font-size:12px;margin-bottom:10px;color:#72697e}
+}
+.backup-button{width:auto;display:inline-flex;gap:5px;padding:7px 9px;font-size:12px}
+.backup-button .icon{width:15px;height:15px}
+.agent-badge{font-size:11px;font-weight:500;color:#6656aa;background:#f1eefb;border-radius:4px;padding:2px 5px;white-space:nowrap}
+.detail-deadline{flex-wrap:wrap;width:fit-content;margin:0 0 16px;font-size:13px}
+.detail-deadline small{font-size:12px;font-weight:400;margin-left:4px}
+.missing-meta,.notice-reference{font-size:12px;line-height:1.8;color:#787183;margin:12px 0 0;overflow-wrap:anywhere}
+.notice-reference{font-family:Consolas,monospace;font-size:11px}
+.notice-dialog .dialog-heading{position:sticky;top:0;background:white;z-index:2}
+.category-heading{display:flex;align-items:center;justify-content:space-between;margin:28px 12px 12px;gap:8px}
+.category-heading .nav-label{margin:0}
+.category-heading .text-button{font-size:12px;padding:2px 0}
+.category-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.category-description{font-size:13px;line-height:1.8;color:#756d83;margin:0}
+.category-create{display:flex;align-items:flex-end;gap:12px}
+.category-create .field{flex:1;min-width:0}
+.category-create .button{height:40px;flex-shrink:0}
+.category-manager-list{display:grid;gap:14px;max-height:min(350px,calc(90vh - 310px));overflow:auto;padding:2px 4px 4px}
+.category-manager-row{display:flex;align-items:flex-end;gap:10px;border-top:1px solid #eeeaf4;padding-top:12px}
+.category-manager-row .field{flex:1;min-width:0}
+.category-manager-row .field>span{font-size:12px;font-weight:400;color:#82788c}
+.category-manager-row .button{height:40px}
+.category-manager-row .text-button{height:40px;padding:0 4px;color:#a45662}
+.category-reserved{font-size:12px;color:#82788c;margin-bottom:11px}
+@media(min-width:721px){.sidebar{overflow-y:auto}.sidebar-bottom{flex-shrink:0}}

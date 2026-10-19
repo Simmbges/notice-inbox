@@ -89,17 +89,18 @@ export function createAuth(sqlite, secureCookies = false, cookieSuffix = '') {
   }
 
   function keys(owner) {
-    return sqlite.prepare('SELECT id, name, prefix, created_at AS createdAt, expires_at AS expiresAt, last_used_at AS lastUsedAt, revoked_at AS revokedAt FROM agent_keys WHERE user_id = ? ORDER BY created_at DESC').all(owner);
+    return sqlite.prepare('SELECT id, name, prefix, permission, created_at AS createdAt, expires_at AS expiresAt, last_used_at AS lastUsedAt, revoked_at AS revokedAt FROM agent_keys WHERE user_id = ? ORDER BY created_at DESC').all(owner);
   }
 
-  function createKey(owner, name) {
+  function createKey(owner, name, permission = 'import') {
     if (typeof name !== 'string' || !name.trim() || name.length > 60) throw new InputError('请输入 1 至 60 个字符的密钥名称。');
+    if (!['import', 'read', 'read_import'].includes(permission)) throw new InputError('请选择有效的密钥权限。');
     const now = Date.now();
     if (sqlite.prepare('SELECT count(*) AS count FROM agent_keys WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?').get(owner, now).count >= 10) throw new InputError('最多保留 10 个有效密钥，请先撤销不用的密钥。');
     const token = `zhi_${randomBytes(32).toString('base64url')}`;
     const id = randomUUID(), expiresAt = now + 90 * day;
-    sqlite.prepare('INSERT INTO agent_keys (id, user_id, name, prefix, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, owner, name.trim(), token.slice(0, 12), sha256(token), now, expiresAt);
-    return { id, token, expiresAt };
+    sqlite.prepare('INSERT INTO agent_keys (id, user_id, name, prefix, token_hash, created_at, expires_at, permission) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, owner, name.trim(), token.slice(0, 12), sha256(token), now, expiresAt, permission);
+    return { id, token, expiresAt, permission };
   }
 
   function revokeKey(owner, id) {
@@ -107,14 +108,15 @@ export function createAuth(sqlite, secureCookies = false, cookieSuffix = '') {
     if (!result.changes) throw new InputError('密钥不存在或已撤销。', 404);
   }
 
-  function agent(headers) {
+  function agent(headers, requiredPermission = null) {
     const match = /^Bearer (zhi_[A-Za-z0-9_-]{43})$/.exec(headers.get('authorization') || '');
-    if (!match) throw new InputError('请提供有效的 Agent 导入密钥。', 401);
-    const key = sqlite.prepare('SELECT id, user_id FROM agent_keys WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?').get(sha256(match[1]), Date.now());
-    if (!key) throw new InputError('Agent 导入密钥无效、已过期或已撤销。', 401);
+    if (!match) throw new InputError('请提供有效的 Agent 密钥。', 401);
+    const key = sqlite.prepare('SELECT id, user_id, permission FROM agent_keys WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?').get(sha256(match[1]), Date.now());
+    if (!key) throw new InputError('Agent 密钥无效、已过期或已撤销。', 401);
     limit(`agent:${key.id}`, 60, 60000);
+    if (requiredPermission && key.permission !== requiredPermission && key.permission !== 'read_import') throw new InputError(`此密钥没有${requiredPermission === 'read' ? '查询' : '导入'}权限。`, 403);
     sqlite.prepare('UPDATE agent_keys SET last_used_at = ? WHERE id = ?').run(Date.now(), key.id);
-    return key.user_id;
+    return { owner: key.user_id, permission: key.permission };
   }
 
   return { user, register, login, logout, keys, createKey, revokeKey, agent, limit };

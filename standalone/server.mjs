@@ -8,6 +8,8 @@ import { deleteNotices, importNotices, listNotices, updateNotice } from '../lib/
 import { openDatabase } from './database.mjs';
 import { createAuth } from './auth.mjs';
 import { agentImport, handleMcp } from './mcp.mjs';
+import { agentGet, agentList } from './agent-notices.mjs';
+import { createCategoryStore } from './categories.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = path => readFileSync(resolve(root, path), 'utf8');
@@ -26,15 +28,17 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
   const database = openDatabase(databaseFile);
   const { sqlite, db } = database;
   const auth = createAuth(sqlite, secure, cookieSuffix);
+  const categoryStore = createCategoryStore(sqlite);
   const panel = read('app/panel.html')
     .replace('通知保存在云端', '通知保存在部署机器')
     .replace('Agent 导入 · 云端保存', 'Agent 导入 · 服务端保存')
     .replace('<main class="workspace">', '<main class="workspace"><div class="account-bar"><span id="account-email">正在读取账号…</span><button id="logout-account" class="text-button">退出登录</button></div>');
-  const page = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6156d9"><title>知会 · 校园通知整理</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/account.css"><script src="/app.js" defer></script><script src="/account.js" defer></script></head><body data-auth="email">${panel}${read('standalone/public/key-dialog.html')}</body></html>`;
+  const page = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6156d9"><title>知会 · 校园通知整理</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/account.css"><link rel="stylesheet" href="/desktop.css"><link rel="stylesheet" href="/key-dialog.css"><script src="/app.js" defer></script><script src="/account.js" defer></script></head><body data-auth="email">${panel}${read('standalone/public/key-dialog.html')}</body></html>`;
   const staticFiles = new Map([
     ['/app.js', ['public/app.js', 'text/javascript']], ['/styles.css', ['public/styles.css', 'text/css']],
     ['/login.js', ['standalone/public/login.js', 'text/javascript']], ['/account.js', ['standalone/public/account.js', 'text/javascript']],
     ['/account.css', ['standalone/public/account.css', 'text/css']],
+    ['/desktop.css', ['public/desktop.css', 'text/css']], ['/key-dialog.css', ['standalone/public/key-dialog.css', 'text/css']],
   ].map(([path, [file, type]]) => [path, { text: read(file), type }]));
 
   function checkWriteOrigin(request) {
@@ -47,7 +51,7 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
   };
 
   async function route(request, ip) {
-    const { pathname } = new URL(request.url), method = request.method;
+    const { pathname, searchParams } = new URL(request.url), method = request.method;
     if (method === 'GET' && staticFiles.has(pathname)) {
       const file = staticFiles.get(pathname);
       return new Response(file.text, { headers: { 'Content-Type': `${file.type}; charset=utf-8` } });
@@ -62,6 +66,9 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
       try { auth.user(request.headers); return html(page); }
       catch (error) { if (error instanceof InputError) return redirect('/login'); throw error; }
     }
+    if (method === 'GET' && pathname === '/agent-skill.zip') {
+      return new Response(readFileSync(resolve(root, 'standalone/public/zhihui-notices.zip')), { headers: { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="zhihui-notices.zip"' } });
+    }
     if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(method)) return json({ error: '不支持该请求方法。' }, 405);
     if (method !== 'GET') checkWriteOrigin(request);
 
@@ -75,10 +82,29 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
       const response = json({ ok: true }); response.headers.set('Set-Cookie', auth.logout(request.headers)); return response;
     }
     if (pathname === '/api/agent/notices' && method === 'POST') {
-      const owner = auth.agent(request.headers);
-      return json(await agentImport(db, owner, (await bodyJSON(request)).notices));
+      const { owner } = auth.agent(request.headers, 'import');
+      return json(await agentImport(db, owner, (await bodyJSON(request)).notices, () => categoryStore.list(owner)));
     }
-    if (pathname === '/mcp') return method === 'POST' ? handleMcp(request, auth, db) : json({ error: 'MCP 入口仅支持 POST。' }, 405);
+    if (method === 'GET' && pathname === '/api/agent/notices') {
+      const { owner } = auth.agent(request.headers, 'read');
+      const args = Object.fromEntries(searchParams);
+      for (const name of ['limit', 'offset']) if (searchParams.has(name)) args[name] = Number(args[name]);
+      return json(await agentList(db, owner, args, categoryStore.list(owner)));
+    }
+    const detail = pathname.match(/^\/api\/agent\/notices\/([^/]+)$/);
+    if (method === 'GET' && detail) {
+      const { owner } = auth.agent(request.headers, 'read');
+      let id;
+      try { id = decodeURIComponent(detail[1]); } catch { throw new InputError('通知编号编码不正确。'); }
+      return json(await agentGet(db, owner, { id }));
+    }
+    if (pathname === '/mcp') return method === 'POST' ? handleMcp(request, auth, db, categoryStore) : json({ error: 'MCP 入口仅支持 POST。' }, 405);
+
+    if (pathname === '/api/categories') {
+      const owner = auth.user(request.headers).id;
+      if (method === 'GET') return json({ categories: categoryStore.list(owner) });
+      return json(categoryStore.change(owner, method, await bodyJSON(request)));
+    }
 
     if (pathname === '/api/account') {
       if (method !== 'GET') return json({ error: '不支持该请求方法。' }, 405);
@@ -87,16 +113,19 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
     if (pathname === '/api/agent-keys' || /^\/api\/agent-keys\/[^/]+$/.test(pathname)) {
       const owner = auth.user(request.headers).id;
       if (pathname === '/api/agent-keys' && method === 'GET') return json({ keys: auth.keys(owner) });
-      if (pathname === '/api/agent-keys' && method === 'POST') return json(auth.createKey(owner, (await bodyJSON(request, 16384)).name));
+      if (pathname === '/api/agent-keys' && method === 'POST') {
+        const body = await bodyJSON(request, 16384);
+        return json(auth.createKey(owner, body.name, body.permission));
+      }
       if (method === 'DELETE' && pathname !== '/api/agent-keys') { auth.revokeKey(owner, pathname.split('/').pop()); return json({ ok: true }); }
       return json({ error: '不支持该请求方法。' }, 405);
     }
     if (pathname === '/api/notices') {
       const owner = auth.user(request.headers).id;
-      if (method === 'GET') return json({ notices: await listNotices(db, owner) });
+      if (method === 'GET') return json({ notices: await listNotices(db, owner), categories: categoryStore.list(owner) });
       const body = await bodyJSON(request);
-      if (method === 'POST') return json(await importNotices(db, owner, body.notices, 'manual'));
-      if (method === 'PATCH') return json({ notice: await updateNotice(db, owner, body.id, body.patch) });
+      if (method === 'POST') return json(await importNotices(db, owner, body.notices, 'manual', () => categoryStore.list(owner)));
+      if (method === 'PATCH') return json({ notice: await updateNotice(db, owner, body.id, body.patch, () => categoryStore.list(owner)) });
       await deleteNotices(db, owner, body.ids); return json({ ok: true });
     }
     return json({ error: '页面不存在。' }, 404);

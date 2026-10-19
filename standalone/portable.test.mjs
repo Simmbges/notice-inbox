@@ -70,7 +70,7 @@ test('Windows 解压即用包：真实 CMD 启动、端口避让、重复启动�
     }, body: body ? JSON.stringify(body) : undefined });
     return { status: response.status, cookie: response.headers.get('set-cookie')?.split(';')[0], body: await response.text() };
   };
-  let cookie;
+  let cookie, readerToken;
   await t.test('仅监听本机，避开其他服务，实际页面与资源可以访问', async () => {
     assert.notEqual(new URL(origin).port, String(blocker.address().port));
     assert.equal((await call('/healthz')).status, 200);
@@ -108,6 +108,18 @@ test('Windows 解压即用包：真实 CMD 启动、端口避让、重复启动�
     assert.ok(stoppedOther.includes('没有运行'));
     assert.equal((await call('/healthz')).status, 200);
   });
+  await t.test('启动包提供按权限发现、通知查询与原文读取', async () => {
+    const key = await call('/api/agent-keys', { cookie, body: { name: '启动包查询测试', permission: 'read_import' } });
+    assert.equal(key.status, 200); assert.equal(JSON.parse(key.body).permission, 'read_import');
+    readerToken = JSON.parse(key.body).token;
+    const discovered = await call('/mcp', { token: readerToken, body: { jsonrpc: '2.0', id: 1, method: 'tools/list' } });
+    assert.deepEqual(JSON.parse(discovered.body).result.tools.map(tool => tool.name), ['import_notices', 'list_notices', 'get_notice']);
+    const searched = await call('/api/agent/notices?query=' + encodeURIComponent('启动包测试'), { token: readerToken });
+    assert.equal(searched.status, 200); assert.equal(JSON.parse(searched.body).total, 1);
+    const id = JSON.parse(searched.body).notices[0].id;
+    const original = await call('/mcp', { token: readerToken, body: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_notice', arguments: { id } } } });
+    assert.equal(JSON.parse(original.body).result.structuredContent.notice.content, '这是临时测试，不是真实校园通知。');
+  });
   await t.test('停止后重启仍保留账号、会话、通知和访问端口', async () => {
     const stopped = execFileSync(process.env.ComSpec, ['/d', '/s', '/c', `""${join(packageRoot, '停止知会.cmd')}""`], {
       windowsVerbatimArguments: true, windowsHide: true, input: '\r\n', encoding: 'utf8', timeout: 15000,
@@ -120,5 +132,6 @@ test('Windows 解压即用包：真实 CMD 启动、端口避让、重复启动�
     assert.equal(await start(), origin);
     assert.equal((await call('/api/account', { cookie })).status, 200);
     assert.equal(JSON.parse((await call('/api/notices', { cookie })).body).notices.length, 1);
+    assert.equal((await call('/api/agent/notices', { token: readerToken })).status, 200);
   });
 });

@@ -1,6 +1,7 @@
 ﻿param([string]$NodeVersion = '24.19.0')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+& (Join-Path $PSScriptRoot 'build-skill.ps1')
 $cache = Join-Path $projectRoot '.sites-local/portable-runtime'
 $releaseDirectory = Join-Path $projectRoot 'releases'
 $runtimeName = "node-v$NodeVersion-win-x64"
@@ -31,9 +32,9 @@ Copy-Item -LiteralPath (Join-Path $runtimeDirectory 'node.exe'), (Join-Path $run
 
 # Only package runtime files: never copy databases, credentials or checkout-local state.
 $applicationFiles = @(
-  'app/panel.html', 'public/app.js', 'public/styles.css',
+  'app/panel.html', 'public/app.js', 'public/styles.css', 'public/desktop.css',
   'lib/notice-input.ts', 'lib/notice-store.ts',
-  'standalone/server.mjs', 'standalone/auth.mjs', 'standalone/database.mjs', 'standalone/mcp.mjs'
+  'standalone/server.mjs', 'standalone/auth.mjs', 'standalone/database.mjs', 'standalone/mcp.mjs', 'standalone/agent-notices.mjs', 'standalone/categories.mjs'
 )
 $applicationFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'standalone/public') -File | ForEach-Object { 'standalone/public/' + $_.Name }
 $applicationFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'standalone/migrations') -Filter '*.sql' -File | ForEach-Object { 'standalone/migrations/' + $_.Name }

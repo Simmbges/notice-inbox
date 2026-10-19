@@ -1,13 +1,15 @@
 'use strict';
 
 const STORAGE_KEY = 'campus-notice-inbox.v1';
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { name: '课程学习', color: '#8187cc', background: '#eef0fc' },
   { name: '校园活动', color: '#6da990', background: '#ebf5ee' },
   { name: '竞赛报名', color: '#bf9068', background: '#faf0e7' },
   { name: '校园事务', color: '#9c85be', background: '#f2ecf9' },
   { name: '其他通知', color: '#8e99aa', background: '#eef1f5' }
 ];
+let CATEGORIES = DEFAULT_CATEGORIES;
+const categoryStyle = name => CATEGORIES.find(category => category.name === name) || { name, color: '#8171ac', background: '#f0ecf8' };
 const VIEW_NAMES = { all: '全部通知', unread: '未读通知', soon: '即将截止', favorites: '我的收藏' };
 const state = { view: 'all', category: '', query: '', sort: 'newest', selected: null, editing: null };
 const $ = (id) => document.getElementById(id);
@@ -22,7 +24,7 @@ const dayDifference = (value) => {
   const today = new Date();
   return Math.round((Date.UTC(year, month - 1, day) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
 };
-const isSoon = (notice) => { const days = dayDifference(notice.deadline); return days !== null && days >= 0 && days <= 7; };
+const isSoon = (notice) => { const days = dayDifference(notice.deadline); return days !== null && days >= 0 && days < 7; };
 const safeURL = (value) => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
 const validDay = (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value) && localDay(new Date(`${value}T12:00:00`)) === value;
 let toastTimer;
@@ -35,7 +37,7 @@ function normalizeNotice(raw) {
   if (!validDay(deadline) || !validDay(publishedAt)) throw new Error('通知日期格式需要为 YYYY-MM-DD，并且是有效日期。');
   const sourceUrl = text('sourceUrl', 2000);
   if (sourceUrl && !safeURL(sourceUrl)) throw new Error('原文链接需要使用 http:// 或 https://。');
-  return { id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 160) : crypto.randomUUID(), title: text('title', 120), content: text('content'), summary: text('summary', 240), category: CATEGORIES.some(c => c.name === raw.category) ? raw.category : '其他通知', sourceName: text('sourceName', 80), sourceUrl, deadline, publishedAt, audience: text('audience', 120), location: text('location', 120), createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(), read: raw.read === true, favorite: raw.favorite === true, isDemo: raw.isDemo === true, importedBy: text('importedBy', 20) };
+  return { id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 160) : crypto.randomUUID(), title: text('title', 120), content: text('content'), summary: text('summary', 240), category: typeof raw.category === 'string' && raw.category.trim() ? raw.category.trim() : '其他通知', sourceName: text('sourceName', 80), sourceUrl, deadline, publishedAt, audience: text('audience', 120), location: text('location', 120), createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(), read: raw.read === true, favorite: raw.favorite === true, isDemo: raw.isDemo === true, importedBy: text('importedBy', 20) };
 }
 
 function loadNotices() {
@@ -50,8 +52,8 @@ function loadNotices() {
 const legacyNotices = loadNotices().filter(n => !n.isDemo);
 let notices = [], serverReady = false, fetching = false, writing = false;
 
-async function api(method = 'GET', body) {
-  const response = await fetch('/api/notices', { method, credentials: 'same-origin', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
+async function api(method = 'GET', body, path = '/api/notices') {
+  const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
   if (response.redirected || response.status === 401) { if (document.body.dataset.auth === 'email') location.assign('/login'); throw new Error('登录已失效，请重新打开网页登录。'); }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || '通知服务暂时不可用。');
@@ -63,12 +65,15 @@ async function refreshNotices(announce = false, notifyNew = true) {
   fetching = true;
   try {
     const result = await api();
+    $('manage-categories').hidden = !Array.isArray(result.categories);
+    const categoriesChanged = Array.isArray(result.categories) && JSON.stringify(result.categories) !== JSON.stringify(CATEGORIES.map(c => c.name));
+    if (categoriesChanged) setCategories(result.categories);
     const incoming = result.notices.map(normalizeNotice);
     const known = new Set(notices.map(n => n.id));
     const added = incoming.filter(n => !known.has(n.id)).length;
     const wasReady = serverReady;
     serverReady = true;
-    if (JSON.stringify(incoming) !== JSON.stringify(notices)) { notices = incoming; render(); }
+    if (JSON.stringify(incoming) !== JSON.stringify(notices) || categoriesChanged) { notices = incoming; render(); }
     const signature = n => JSON.stringify([n.title, n.content, n.sourceUrl].map(s => s.replace(/\s+/g, ' ').trim()));
     const existing = new Set(incoming.flatMap(n => [n.id, signature(n)]));
     const remaining = legacyNotices.filter(n => !existing.has(n.id) && !existing.has(signature(n)));
@@ -124,7 +129,7 @@ function deadlineLabel(notice) {
   if (days < 0) return { label: `${formatDay(notice.deadline)} · 已截止`, style: 'overdue' };
   if (days === 0) return { label: '今天截止', style: 'urgent' };
   if (days === 1) return { label: '明天截止', style: 'urgent' };
-  return { label: `${formatDay(notice.deadline)} 截止`, style: days <= 7 ? 'urgent' : '' };
+  return { label: days < 7 ? `还剩 ${days} 天 · ${formatDay(notice.deadline)}截止` : `${formatDay(notice.deadline)} 截止`, style: days < 7 ? 'urgent' : '' };
 }
 
 function filteredNotices() {
@@ -136,7 +141,7 @@ function render() {
   const counts = { all: notices.length, unread: notices.filter(n => !n.read).length, soon: notices.filter(isSoon).length, favorites: notices.filter(n => n.favorite).length };
   Object.entries(counts).forEach(([key, count]) => { $(`stat-${key}`).textContent = count; $(`nav-${key}`).textContent = count; });
   document.querySelectorAll('#view-nav [data-view]').forEach(button => { button.classList.toggle('active', button.dataset.view === state.view); button.setAttribute('aria-pressed', String(button.dataset.view === state.view)); });
-  $('category-nav').innerHTML = CATEGORIES.map(c => `<button class="nav-item ${state.category === c.name ? 'active' : ''}" data-category="${c.name}" aria-pressed="${state.category === c.name}"><span class="category-dot" style="background:${c.color}"></span>${c.name}<span class="nav-count">${notices.filter(n => n.category === c.name).length}</span></button>`).join('');
+  $('category-nav').innerHTML = CATEGORIES.map(c => `<button class="nav-item ${state.category === c.name ? 'active' : ''}" data-category="${escapeHTML(c.name)}" aria-pressed="${state.category === c.name}"><span class="category-dot" style="background:${c.color}"></span><span class="category-name">${escapeHTML(c.name)}</span><span class="nav-count">${notices.filter(n => n.category === c.name).length}</span></button>`).join('');
   $('demo-banner').hidden = !notices.some(n => n.isDemo);
   const visible = filteredNotices();
   if (!visible.some(n => n.id === state.selected)) state.selected = visible[0]?.id ?? null;
@@ -145,8 +150,8 @@ function render() {
   $('active-filter').hidden = !state.category;
   $('active-filter').innerHTML = state.category ? `${escapeHTML(state.category)}<button data-action="clear-category">清除筛选 ×</button>` : '';
   $('notice-list').innerHTML = visible.map(n => {
-    const category = CATEGORIES.find(c => c.name === n.category), deadline = deadlineLabel(n);
-    return `<article class="notice-card ${n.id === state.selected ? 'selected' : ''}"><button class="notice-open" data-action="select" data-id="${escapeHTML(n.id)}" aria-pressed="${n.id === state.selected}" aria-label="查看通知：${escapeHTML(n.title)}"><div class="card-top"><span class="category-badge" style="color:${category.color};background:${category.background}">${n.category}</span>${n.isDemo ? '<span class="sample-badge">示例</span>' : ''}${!n.read ? '<span class="unread-dot" title="未读"></span>' : ''}</div><h3>${escapeHTML(n.title)}</h3><p class="card-summary">${escapeHTML(n.summary || n.content)}</p><div class="card-footer"><span class="card-source">${icon('file')}<span>${escapeHTML(n.sourceName || '手动录入')}</span></span><span class="deadline-badge ${deadline.style}">${icon('clock')}${deadline.label}</span></div></button><button class="favorite-button ${n.favorite ? 'is-favorite' : ''}" data-action="favorite" data-id="${escapeHTML(n.id)}" title="${n.favorite ? '取消收藏' : '收藏通知'}" aria-label="${n.favorite ? '取消收藏' : '收藏通知'}：${escapeHTML(n.title)}" aria-pressed="${n.favorite}">${icon('star')}</button></article>`;
+    const category = categoryStyle(n.category), deadline = deadlineLabel(n);
+    return `<article class="notice-card ${n.id === state.selected ? 'selected' : ''}"><button class="notice-open" data-action="select" data-id="${escapeHTML(n.id)}" aria-pressed="${n.id === state.selected}" aria-label="查看通知：${escapeHTML(n.title)}"><div class="card-top"><span class="category-badge" style="color:${category.color};background:${category.background}">${escapeHTML(n.category)}</span>${n.isDemo ? '<span class="sample-badge">示例</span>' : ''}${!n.read ? '<span class="unread-dot" title="未读"></span>' : ''}</div><h3>${escapeHTML(n.title)}</h3><p class="card-summary">${escapeHTML(n.summary || n.content)}</p><div class="card-footer"><span class="card-source">${icon('file')}<span>${escapeHTML(n.sourceName || '来源未注明')}</span>${n.importedBy === 'agent' ? '<span class="agent-badge">Agent 导入</span>' : ''}</span><span class="deadline-badge ${deadline.style}">${icon('clock')}${deadline.label}</span></div></button><button class="favorite-button ${n.favorite ? 'is-favorite' : ''}" data-action="favorite" data-id="${escapeHTML(n.id)}" title="${n.favorite ? '取消收藏' : '收藏通知'}" aria-label="${n.favorite ? '取消收藏' : '收藏通知'}：${escapeHTML(n.title)}" aria-pressed="${n.favorite}">${icon('star')}</button></article>`;
   }).join('');
   $('empty-state').hidden = visible.length > 0;
   const filtering = !!state.query || !!state.category || state.view !== 'all';
@@ -159,9 +164,54 @@ function render() {
 function renderDetail() {
   const n = notices.find(n => n.id === state.selected);
   if (!n) { $('detail-panel').innerHTML = `<div class="detail-heading"><span>${icon('file')}通知详情</span></div><div class="detail-empty">${icon('file')}<p>选择一条通知<br>在这里查看完整内容。</p></div>`; return; }
-  const category = CATEGORIES.find(c => c.name === n.category);
-  $('detail-panel').innerHTML = `<div class="detail-heading"><span>${icon('file')}通知详情</span><span>${n.read ? '已读' : '未读'}</span></div><div class="detail-body"><div class="detail-topline"><span class="category-badge" style="color:${category.color};background:${category.background}">${n.category}</span>${n.isDemo ? '<span class="sample-badge">自编示例</span>' : ''}</div><h2>${escapeHTML(n.title)}</h2>${n.summary ? `<div class="detail-summary">${escapeHTML(n.summary)}</div>` : ''}<dl class="detail-meta"><dt>发布单位</dt><dd>${escapeHTML(n.sourceName || '未注明')}</dd><dt>发布日期</dt><dd>${formatDay(n.publishedAt)}</dd><dt>截止日期</dt><dd class="${n.deadline ? 'deadline-emphasis' : ''}">${n.deadline ? `${escapeHTML(n.deadline)}${dayDifference(n.deadline) < 0 ? ' · 已截止' : ''}` : '未注明'}</dd><dt>适用对象</dt><dd>${escapeHTML(n.audience || '未注明')}</dd><dt>地点</dt><dd>${escapeHTML(n.location || '未注明')}</dd></dl><div class="content-divider">通知原文</div><p class="original-content">${escapeHTML(n.content)}</p>${n.sourceUrl ? `<a class="source-link" href="${escapeHTML(safeURL(n.sourceUrl))}" target="_blank" rel="noopener noreferrer">查看原文链接${icon('link')}</a>` : ''}<div class="detail-actions"><button class="button secondary" data-action="read" data-id="${escapeHTML(n.id)}">${icon(n.read ? 'mail' : 'check')}${n.read ? '标为未读' : '标为已读'}</button><button class="icon-button" data-action="edit" data-id="${escapeHTML(n.id)}" aria-label="编辑通知" title="编辑通知">${icon('edit')}</button><button class="icon-button" data-action="delete" data-id="${escapeHTML(n.id)}" aria-label="删除通知" title="删除通知">${icon('trash')}</button></div></div>`;
+  const category = categoryStyle(n.category);
+  const deadline = deadlineLabel(n);
+  const fields = [['发布单位', n.sourceName], ['发布日期', n.publishedAt], ['适用对象', n.audience], ['地点', n.location]];
+  const missing = fields.filter(([, value]) => !value).map(([label]) => label);
+  $('detail-panel').innerHTML = `<div class="detail-heading"><span>${icon('file')}通知详情</span><span>${n.read ? '已读' : '未读'}</span></div><div class="detail-body"><div class="detail-topline"><span class="category-badge" style="color:${category.color};background:${category.background}">${escapeHTML(n.category)}</span>${n.importedBy === 'agent' ? '<span class="agent-badge">Agent 导入</span>' : ''}${n.isDemo ? '<span class="sample-badge">自编示例</span>' : ''}</div><h2>${escapeHTML(n.title)}</h2><div class="detail-deadline deadline-badge ${deadline.style}">${icon('clock')}${escapeHTML(deadline.label)}${n.deadline ? `<small>${escapeHTML(n.deadline)}</small>` : ''}</div>${n.summary ? `<div class="detail-summary">${escapeHTML(n.summary)}</div>` : ''}<dl class="detail-meta">${fields.filter(([, value]) => value).map(([label, value]) => `<dt>${label}</dt><dd>${escapeHTML(value)}</dd>`).join('')}</dl>${missing.length ? `<p class="missing-meta">${missing.join('、')}未注明</p>` : ''}<div class="content-divider">通知原文</div><p class="original-content">${escapeHTML(n.content)}</p>${n.sourceUrl ? `<a class="source-link" href="${escapeHTML(safeURL(n.sourceUrl))}" target="_blank" rel="noopener noreferrer">查看原文链接${icon('link')}</a>` : ''}<p class="notice-reference">通知编号：${escapeHTML(n.id)}</p><div class="detail-actions"><button class="button secondary" data-action="read" data-id="${escapeHTML(n.id)}">${icon(n.read ? 'mail' : 'check')}${n.read ? '标为未读' : '标为已读'}</button><button class="icon-button" data-action="edit" data-id="${escapeHTML(n.id)}" aria-label="编辑通知" title="编辑通知">${icon('edit')}</button><button class="icon-button" data-action="delete" data-id="${escapeHTML(n.id)}" aria-label="删除通知" title="删除通知">${icon('trash')}</button></div></div>`;
 }
+
+function setCategories(names) {
+  CATEGORIES = names.map(name => DEFAULT_CATEGORIES.find(c => c.name === name) || categoryStyle(name));
+  if (state.category && !names.includes(state.category)) state.category = '';
+  const select = $('notice-form').elements.namedItem('category'), previous = select.value;
+  select.innerHTML = names.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+  select.value = names.includes(previous) ? previous : '其他通知';
+}
+
+const categoryRequest = (method, body) => api(method, body, '/api/categories');
+function renderCategoryManager() {
+  $('category-list').innerHTML = CATEGORIES.map(({ name }) => {
+    const count = notices.filter(n => n.category === name).length;
+    return `<form class="category-manager-row" data-name="${escapeHTML(name)}"><label class="field"><span>${count} 条通知${name === '其他通知' ? ' · 保留分类' : ''}</span><input name="newName" value="${escapeHTML(name)}" required maxlength="30" aria-label="分类名称：${escapeHTML(name)}" ${name === '其他通知' ? 'readonly' : ''}></label>${name === '其他通知' ? '<span class="category-reserved">用于接收未分类通知</span>' : `<button type="submit" class="button secondary">保存名称</button><button type="button" class="text-button" data-delete-category="${escapeHTML(name)}" aria-label="删除分类：${escapeHTML(name)}">删除</button>`}</form>`;
+  }).join('');
+}
+async function changeCategory(button, method, body) {
+  await writeNotices(button, async () => {
+    const result = await categoryRequest(method, body);
+    if (method !== 'POST') {
+      const nextName = method === 'PATCH' ? body.newName.trim() : '其他通知';
+      notices = notices.map(n => n.category === body.name ? { ...n, category: nextName } : n);
+      if (state.category === body.name) state.category = nextName;
+    } else $('category-name').value = '';
+    setCategories(result.categories); render(); renderCategoryManager();
+    toast(method === 'POST' ? '分类已添加' : method === 'PATCH' ? '分类名称和已有通知已同步更新' : '分类已删除，通知已移到“其他通知”');
+  });
+}
+$('manage-categories').addEventListener('click', () => { renderCategoryManager(); $('category-dialog').showModal(); $('category-name').focus(); });
+$('close-categories').addEventListener('click', () => $('category-dialog').close());
+$('category-form').addEventListener('submit', event => { event.preventDefault(); changeCategory(event.submitter, 'POST', { name: $('category-name').value }); });
+$('category-list').addEventListener('submit', event => {
+  event.preventDefault();
+  changeCategory(event.submitter, 'PATCH', { name: event.target.dataset.name, newName: event.target.elements.namedItem('newName').value });
+});
+$('category-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-delete-category]');
+  if (!button) return;
+  const name = button.dataset.deleteCategory, count = notices.filter(n => n.category === name).length;
+  if (count && !confirm(`删除“${name}”分类？其中 ${count} 条通知会移到“其他通知”，通知内容会保留。`)) return;
+  changeCategory(button, 'DELETE', { name });
+});
 
 function openForm(id = null) {
   state.editing = id;
@@ -227,7 +277,7 @@ $('remove-examples').addEventListener('click', async () => {
 });
 $('undo-button').addEventListener('click', () => { const action = undoAction; undoAction = null; action?.(); });
 $('export-button').addEventListener('click', () => {
-  const url = URL.createObjectURL(new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), notices }, null, 2)], { type: 'application/json' }));
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), categories: CATEGORIES.map(c => c.name), notices }, null, 2)], { type: 'application/json' }));
   const link = document.createElement('a'); link.href = url; link.download = `知会通知备份-${localDay()}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast('通知备份已导出');
 });
 $('import-button').addEventListener('click', () => $('import-file').click());
@@ -238,7 +288,15 @@ $('import-file').addEventListener('change', async (event) => {
     const imported = JSON.parse(await file.text());
     if (imported.version !== 1 || !Array.isArray(imported.notices)) throw new Error('请选择知会导出的 JSON 备份文件。');
     const incoming = imported.notices.map(normalizeNotice);
-    await writeNotices($('import-button'), async () => { const result = await importBatches(incoming); toast(`已保存 ${result.imported} 条通知，跳过 ${result.skipped} 条已有记录`); });
+    const names = [...new Set([...(Array.isArray(imported.categories) ? imported.categories : []), ...incoming.map(n => n.category)])];
+    if (names.some(name => typeof name !== 'string' || !name.trim() || name.trim().length > 30 || /[\u0000-\u001f\u007f]/.test(name))) throw new Error('备份中的分类名称必须为 1—30 个字符，不能含换行。');
+    if (new Set([...CATEGORIES.map(c => c.name), ...names.map(name => name.trim())]).size > 30) throw new Error('导入后分类将超过 30 个，请先整理分类。');
+    await writeNotices($('import-button'), async () => {
+      for (const name of names.map(name => name.trim())) {
+        if (!CATEGORIES.some(c => c.name === name)) setCategories((await categoryRequest('POST', { name })).categories);
+      }
+      const result = await importBatches(incoming); toast(`已保存 ${result.imported} 条通知，跳过 ${result.skipped} 条已有记录`);
+    });
   } catch (error) { toast(error instanceof SyntaxError ? '文件不是有效的 JSON，请检查备份。' : error.message); }
   event.target.value = '';
 });

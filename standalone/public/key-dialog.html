@@ -1,8 +1,17 @@
-<dialog id="key-dialog" class="notice-dialog"><div class="dialog-heading"><div><span class="eyebrow">把整理好的通知，直接送进来</span><h2>Agent 导入密钥</h2></div><button id="close-keys" class="icon-button" aria-label="关闭密钥管理">×</button></div><div class="form-fields agent-help">
-  <p>为你的 Agent 创建一个专用密钥。它只能向你的通知库导入通知，不能查看或修改已有记录。每个密钥有效期为 90 天，可以随时撤销。</p>
-  <form id="key-form" class="key-create"><label class="field">密钥名称<input id="key-name" required maxlength="60" placeholder="例如：我的连小理"></label><button id="create-key" type="submit" class="button primary">创建密钥</button></form>
-  <section id="new-key" class="new-key" hidden><strong>请现在复制，关闭后不再显示完整密钥。</strong><label class="field">新密钥<input id="new-key-token" readonly autocomplete="off" spellcheck="false"></label><button id="copy-key" class="button secondary">复制密钥</button><p>将密钥填入 Agent 的认证配置，不要发到群聊或放进公开代码。</p></section>
-  <p id="key-message" class="key-message" role="status" aria-live="polite"></p>
-  <div><h3 class="key-heading">连接方式</h3><label class="field">MCP 服务地址<input id="key-mcp-address" readonly></label><label class="field">HTTP 导入地址<input id="key-http-address" readonly></label><p>支持 MCP 的 Agent：填写服务地址，认证方式选 Bearer Token，填入密钥。支持 HTTP 工具的 Agent：向导入地址发送 POST 请求，请求头使用 Authorization: Bearer 你的密钥。</p><p>连小理需要支持外部 MCP 或 HTTP 工具；能否接入仍需在它的平台实测。</p></div>
-  <div><h3 class="key-heading">我的密钥</h3><div id="key-list" class="key-list"></div></div>
-</div></dialog>
+<dialog id="key-dialog" class="notice-dialog" aria-labelledby="key-dialog-title">
+  <div class="dialog-heading"><div><span class="eyebrow">让 Agent 帮你保存，也帮你找到</span><h2 id="key-dialog-title">连接 Agent</h2></div><button id="close-keys" class="icon-button" aria-label="关闭密钥管理">×</button></div>
+  <div class="key-switch" role="group" aria-label="连接与密钥管理"><button type="button" data-key-panel="key-connect-panel" aria-pressed="true">快速连接</button><button type="button" data-key-panel="key-manage-panel" aria-pressed="false">管理密钥</button></div>
+  <div class="form-fields agent-help">
+    <section id="key-connect-panel" class="key-panel">
+      <p>首次连接：复制服务地址 → 创建密钥 → 填入 Agent 的 MCP 配置。</p>
+      <label class="field">MCP 服务地址<div class="copy-field"><input id="key-mcp-address" readonly><button id="copy-key-address" type="button" class="button secondary">复制地址</button></div></label>
+      <form id="key-form" class="key-create"><label class="field">密钥名称<input id="key-name" required maxlength="60" placeholder="例如：我的通知助手"></label><label class="field">允许的操作<select id="key-permission" aria-describedby="key-permission-help"><option value="import">仅导入</option><option value="read">仅查询</option><option value="read_import">查询＋导入</option></select></label><button id="create-key" type="submit" class="button primary">创建密钥</button></form>
+      <p id="key-permission-help" class="permission-help">仅导入：让 Agent 保存你发来的通知，不能读取通知库。</p>
+      <section id="new-key" class="new-key" hidden><strong>完整密钥仅显示一次，请现在复制。</strong><label class="field">新密钥<input id="new-key-token" readonly autocomplete="off" spellcheck="false"></label><div class="key-copy-actions"><button id="copy-key-config" type="button" class="button primary">复制配置提示词</button><button id="copy-key" type="button" class="button secondary">仅复制密钥</button></div><p>配置提示词包含密钥，只发给你信任的 Agent；关闭窗口后无法恢复完整密钥。</p></section>
+      <div class="skill-callout"><div><strong>已经连接好了？</strong><p>安装知会 skill，让 Agent 按统一规则导入、查询通知，并生成日程时间轴。</p></div><a href="/agent-skill.zip" download="zhihui-notices.zip" class="button secondary">下载 skill</a></div>
+      <details class="connection-details"><summary>高级配置与权限说明</summary><label class="field">HTTP 通知接口<input id="key-http-address" readonly></label><p>MCP 传输方式为 Streamable HTTP，认证方式为 Bearer Token。HTTP 接口使用相同认证，POST 导入、GET 查询，地址后追加 /通知编号读取详情。</p><p>工具按权限开放：import_notices 导入，list_notices 查询，get_notice 读取原文。密钥 90 天有效，可随时撤销，均不能修改或删除通知。旧密钥仍仅允许导入。</p><p>读取权限会开放当前账号的通知及原文，请仅授予可信的 Agent。执行 MCP 工具的 Agent 需要能访问运行知会的电脑。</p></details>
+    </section>
+    <section id="key-manage-panel" class="key-panel" hidden><p>这里显示权限、有效期和最近调用记录。最近调用不代表 Agent 当前在线。</p><div id="key-list" class="key-list"></div></section>
+    <p id="key-message" class="key-message" role="status" aria-live="polite"></p>
+  </div>
+</dialog>

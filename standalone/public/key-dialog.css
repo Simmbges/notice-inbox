@@ -1,0 +1,24 @@
+.key-switch{display:flex;gap:6px;padding:15px 27px 0}
+.key-switch button{border:1px solid #e7e2f0;background:white;border-radius:8px;padding:9px 14px;font-size:14px;color:#6d647d}
+.key-switch button[aria-pressed=true]{background:#eeebfb;color:#5545ab;border-color:#dbd4f5}
+.key-panel{display:grid;gap:18px}
+.copy-field{display:flex;align-items:center;gap:8px}
+.copy-field input{min-width:0;flex:1}
+.copy-field .button{margin-top:6px}
+.permission-help{font-size:13px!important;color:#665e76!important}
+.key-copy-actions{display:flex;gap:8px;flex-wrap:wrap}
+.connection-details{border-top:1px solid #e9e5f1;padding-top:15px}
+.connection-details summary{cursor:pointer;font-size:13px;color:#665d79}
+.connection-details .field,.connection-details p{margin-top:12px}
+.skill-callout{display:flex;gap:16px;align-items:center;border:1px solid #e7e2f3;background:#faf9fe;padding:15px;border-radius:10px}
+.skill-callout strong{font-size:14px}
+.skill-callout p{margin-top:5px;font-size:13px}
+.skill-callout a{text-decoration:none;flex-shrink:0}
+#key-dialog{width:min(700px,calc(100% - 30px))}
+#key-dialog .dialog-heading{padding:19px 27px 16px}
+#key-dialog .dialog-heading h2{margin-bottom:0}
+#key-dialog .form-fields{padding-top:18px;gap:10px}
+#key-dialog .key-message:empty{display:none}
+#key-dialog .key-row strong{font-size:14px}
+#key-dialog .key-row small{font-size:12px;color:#756b83}
+#key-dialog input[readonly]{font-size:12px}
