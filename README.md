@@ -2,13 +2,15 @@
 
 一个可由 Agent 查询和写入的校园事件面板，用于集中保存、整理和查看分散的校园事件。当前版本使用邮箱＋密码登录、SQLite 持久化保存、每人独立且可撤销的 Agent 密钥，不依赖 OpenAI 账号。
 
+**现已提供可直接使用的 Windows Release 发行版。** [下载最新一键启动包](https://github.com/Simmbges/notice-inbox/releases/latest/download/zhihui-windows-x64.zip) · [查看 Release 发行说明](https://github.com/Simmbges/notice-inbox/releases/latest)。完整解压后，双击“启动知会.cmd”即可使用，无需安装开发环境。
+
 使用流程：把事件发给 Agent → Agent 提取标题、摘要、分类和日期并保留原文 → 调用工具入库 → 网页面板自动显示。
 
 已连接 MCP 的电脑端 Agent 还可使用随项目提供的 `zhihui-notices` skill，实时查询事件、读取原文，并把近期安排生成本地 HTML 时间轴。当前优先完善电脑端使用，手机与机器人通道暂缓。
 
 ## 当前进度（2026-10-20）
 
-项目已达到本地可用、可演示完整流程、具备独立部署配置的阶段，尚未部署到独立公网服务器。
+项目已发布 [v1.0.0 Windows 本地版](https://github.com/Simmbges/notice-inbox/releases/tag/v1.0.0)，可直接下载、解压使用并演示完整流程；具备独立部署配置，尚未部署到独立公网服务器。
 
 | 模块 | 已完成内容 |
 |---|---|
@@ -22,7 +24,7 @@
 | 日程可视化 | 零依赖 Node.js 本地 HTML 时间轴，区分活动与截止，附事件编号、日期证据和待确认事项 |
 | Codex 验证 | 已完成本地 MCP 工具发现和使用配置凭据导入测试事件；开发环境的 Codex 已加载导入工具 |
 | 连小理验证 | 用户已完成导入测试，确认可向事件面板写入信息 |
-| 本地启动包 | Windows x64 自带运行环境、双击启动和停止、自动打开浏览器、端口避让和重复启动保护 |
+| Release 发行版 | 已发布 Windows x64 一键启动包，自带运行环境、双击启动和停止、自动打开浏览器、端口避让和重复启动保护 |
 | 部署准备 | 独立部署包、Docker Compose、Caddy HTTPS 配置和部署文档 |
 
 尚未完成：
@@ -32,21 +34,25 @@
 - 邮箱验证和邮件找回密码。
 - skill 在连小理等具体客户端安装后的实际调用体验；当前已验证 MCP 到时间轴的程序集成，手机通道暂缓。
 
-## 快速开始：Windows 本地启动包
+## 快速开始：直接使用 Release 发行版（推荐）
 
 适用于 Windows 10 / 11 x64，无需安装 Node.js、npm 或 Docker，也无需云端账号。
 
-仓库源码不包含 `releases/` 和独立部署 ZIP。若从 GitHub 下载源码，请按下方“从源码运行”直接启动，或自行构建启动包；维护者发布后，也可从仓库的 Releases 下载启动包附件。
+普通用户直接下载已发布的启动包即可，无需下载仓库源码或自行构建。
 
-1. 完整解压 `releases/zhihui-windows-x64.zip`，不要在压缩包内直接运行。
+1. 前往 [最新 Release 页面](https://github.com/Simmbges/notice-inbox/releases/latest)，下载附件 **zhihui-windows-x64.zip** 并完整解压，不要在压缩包内直接运行。
 2. 打开“知会本地版”文件夹，双击“启动知会.cmd”，程序会自动打开浏览器。
 3. 首次使用注册邮箱账号。使用期间保留启动窗口，停止时双击“停止知会.cmd”，或在启动窗口按 Ctrl+C。
+
+Release 页面自动提供的 **Source code (zip / tar.gz)** 是源码包，用于开发或自行运行源码。希望解压后双击启动时，请选择 **zhihui-windows-x64.zip**；需要调试和修改程序时，可按下方“从源码运行”操作。
 
 默认使用 `http://127.0.0.1:4173`；端口被占用时自动选择可用端口，并记住本次地址。重复双击会重新打开已经运行的面板，不会再启动一个服务。实际网页和 MCP 地址以启动窗口、面板显示为准。
 
 启动包的账号和事件保存在包内的 `data` 文件夹。它与源码运行目录的数据相互独立，压缩包不包含开发者的账号、事件或密钥。旧事件可通过 JSON 备份导入；账号和 Agent 密钥需要重新创建，原有 Codex 连接不会自动切换。完整备份或搬家前先停止程序，再复制整个 `data` 文件夹。
 
-维护者可在 PowerShell 7 中构建启动包（使用启动包不需要 PowerShell 7）：
+### 自行构建启动包（维护者可选）
+
+维护者可在 PowerShell 7 中构建启动包；直接使用 Release 发行版无需执行以下步骤，也不需要 PowerShell 7：
 
 ```powershell
 pwsh -NoProfile -File standalone/build-portable.ps1
