@@ -32,7 +32,7 @@ test('自定义分类：账号隔离、通知同步、MCP 和重启持久化', a
     await t.test('初始分类兼容旧数据，新增与校验仅作用于当前账号', async () => {
       assert.equal((await call('/api/categories')).status, 401);
       const initial = (await call('/api/categories', 'GET', null, cookieA)).data.categories;
-      assert.equal(initial.length, 5); assert.equal(initial.at(-1), '其他通知');
+      assert.equal(initial.length, 7); assert.equal(initial.at(-1), '其他通知'); assert.ok(initial.includes('日程')); assert.ok(initial.includes('课程'));
       assert.equal((await call('/api/categories', 'POST', { name: '  实习招聘  ' }, cookieA)).status, 200);
       assert.equal((await call('/api/categories', 'POST', { name: '实习招聘' }, cookieA)).status, 409);
       assert.ok(!(await call('/api/categories', 'GET', null, cookieB)).data.categories.includes('实习招聘'));

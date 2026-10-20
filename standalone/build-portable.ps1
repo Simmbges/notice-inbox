@@ -20,10 +20,9 @@ $expectedHash = ($checksumLine -split '\s+')[0]
 if (-not $expectedHash -or (Get-FileHash -LiteralPath $runtimeZip -Algorithm SHA256).Hash -ne $expectedHash) {
   throw 'Node.js runtime checksum verification failed.'
 }
-$runtimeDirectory = Join-Path $cache $runtimeName
-Expand-Archive -LiteralPath $runtimeZip -DestinationPath $cache -Force
-
 $staging = Join-Path $projectRoot ('.sites-local/portable-build/' + [guid]::NewGuid().ToString('N'))
+$runtimeDirectory = Join-Path $staging $runtimeName
+Expand-Archive -LiteralPath $runtimeZip -DestinationPath $staging
 $packageRoot = Join-Path $staging '知会本地版'
 $applicationRoot = Join-Path $packageRoot 'app'
 $bundledRuntime = Join-Path $packageRoot 'runtime'
@@ -32,9 +31,9 @@ Copy-Item -LiteralPath (Join-Path $runtimeDirectory 'node.exe'), (Join-Path $run
 
 # Only package runtime files: never copy databases, credentials or checkout-local state.
 $applicationFiles = @(
-  'app/panel.html', 'public/app.js', 'public/styles.css', 'public/desktop.css',
+  'app/panel.html', 'public/app.js', 'public/styles.css', 'public/desktop.css', 'public/schedule.js', 'public/schedule.css', 'public/event-rules.js', 'public/event-editor.js', 'public/event-editor.css', 'public/planner.js', 'public/planner.css',
   'lib/notice-input.ts', 'lib/notice-store.ts',
-  'standalone/server.mjs', 'standalone/auth.mjs', 'standalone/database.mjs', 'standalone/mcp.mjs', 'standalone/agent-notices.mjs', 'standalone/categories.mjs'
+  'standalone/server.mjs', 'standalone/auth.mjs', 'standalone/database.mjs', 'standalone/mcp.mjs', 'standalone/agent-notices.mjs', 'standalone/categories.mjs', 'standalone/event-store.mjs', 'standalone/task-store.mjs', 'standalone/planner-api.mjs'
 )
 $applicationFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'standalone/public') -File | ForEach-Object { 'standalone/public/' + $_.Name }
 $applicationFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'standalone/migrations') -Filter '*.sql' -File | ForEach-Object { 'standalone/migrations/' + $_.Name }

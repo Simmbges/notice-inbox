@@ -1,0 +1,15 @@
+.event-time-card [hidden]{display:none!important}
+.event-time-card .event-row-heading>.field-row{flex:1;margin:0}
+.event-time-card .event-row-heading .remove-event{flex-shrink:0;white-space:nowrap}
+.event-time-card .event-end>div{min-width:0}
+.event-time-card .event-rule-days{display:flex;flex-wrap:wrap;gap:10px 16px;margin:15px 0}
+.event-time-card .event-rule-days label{display:flex;align-items:center;gap:5px;font-size:13px;color:#7b6888}
+.event-time-card .event-rule-days input{accent-color:var(--primary)}
+.event-time-card .event-rule-note{margin:12px 0 0;font-size:12px;line-height:1.8;color:#96849f}
+.participation-tag{font-size:10px;line-height:1.5;color:#83798e;white-space:nowrap}
+.event-participation{margin:0;font-size:13px;color:#625476}
+.event-participation-section .event-rule-note{margin-top:7px}
+.event-rule-note{margin:0;font-size:12px;line-height:1.8;color:#91869d}
+.event-source>summary{cursor:pointer;padding:10px 0;color:#756287;font-size:13px;font-weight:600}
+.event-source[open]>summary{margin-bottom:10px}
+.event-source>.field-row,.event-source>.field{margin-bottom:16px}

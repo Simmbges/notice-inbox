@@ -1,4 +1,4 @@
 interface:
-  display_name: "知会通知助手"
-  short_description: "通过知会 MCP 保存和读取校园通知，核对原文并生成近期安排时间轴"
-  default_prompt: "使用 $zhihui-notices 查询我未来七天的安排，并按原文日期生成时间轴。"
+  display_name: "知会时间管理助手"
+  short_description: "通过知会 MCP 整理事件和课表、管理任务与时间偏好，制定每日计划并复盘"
+  default_prompt: "使用 $zhihui-notices 查询未来七天的事件、课表和任务，结合我的时间偏好制定计划，并说明冲突与待确认项。"

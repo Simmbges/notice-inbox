@@ -1,4 +1,4 @@
-import { categories, InputError } from '../lib/notice-input.ts';
+import { categories, InputError, normalizeEvents, noticeDefaults } from '../lib/notice-input.ts';
 
 const timeZone = 'Asia/Shanghai';
 const shiftDate = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
@@ -47,8 +47,8 @@ export async function agentList(db, owner, arguments_ = {}, categoryNames = cate
   const order = sort === 'deadline' ? "(json_extract(data, '$.deadline') = '') ASC, json_extract(data, '$.deadline') ASC, created_at DESC, id DESC" : 'created_at DESC, id DESC';
   const rows = await db.prepare(`SELECT data FROM notices WHERE ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...values, limit, offset).all();
   const notices = rows.results.map(({ data }) => {
-    const { id, title, summary, category, sourceName, sourceUrl, publishedAt, deadline, audience, location, content } = JSON.parse(data);
-    return { id, title, summary, category, sourceName, sourceUrl, publishedAt, deadline, audience, location, excerpt: content.slice(0, 240) };
+    const { id, title, summary, category, sourceName, sourceUrl, publishedAt, deadline, audience, location, content, events, recordType, participation, active } = noticeDefaults(JSON.parse(data));
+    return { id, title, summary, category, sourceName, sourceUrl, publishedAt, deadline, audience, location, recordType, participation, active, events: normalizeEvents(events), excerpt: (content || '').slice(0, 240) };
   });
   return { ...clock, categories: categoryNames, notices, total, limit, offset, hasMore: offset + notices.length < total, filters: { query: query.trim(), category: category ?? '', deadlineFrom, deadlineTo, sort } };
 }
@@ -56,8 +56,9 @@ export async function agentList(db, owner, arguments_ = {}, categoryNames = cate
 export async function agentGet(db, owner, arguments_) {
   checkArguments(arguments_, ['id']);
   const { id } = arguments_;
-  if (typeof id !== 'string' || !id.trim() || id.length > 160) throw new InputError('请提供有效的通知编号。');
-  const row = await db.prepare('SELECT data FROM notices WHERE owner_id = ? AND id = ?').bind(owner, id).first();
-  if (!row) throw new InputError('通知不存在或不属于当前账号。', 404);
-  return { ...context(), notice: JSON.parse(row.data) };
+  if (typeof id !== 'string' || !id.trim() || id.length > 160) throw new InputError('请提供有效的事件编号。');
+  const row = await db.prepare('SELECT data, updated_at FROM notices WHERE owner_id = ? AND id = ?').bind(owner, id).first();
+  if (!row) throw new InputError('事件不存在或不属于当前账号。', 404);
+  const notice = JSON.parse(row.data);
+  return { ...context(), updatedAt: row.updated_at, notice: noticeDefaults({ ...notice, events: normalizeEvents(notice.events) }) };
 }

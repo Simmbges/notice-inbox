@@ -1,4 +1,4 @@
-/* 桌面通知阅读：把空间留给列表和原文。 */
+/* 桌面事件阅读：把空间留给列表和原文。 */
 @media(min-width:1001px){
   .workspace{padding:24px 30px 18px}
   .page-header{margin-bottom:18px;gap:16px}

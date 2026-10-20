@@ -10,8 +10,8 @@ for (const next of ['login', 'register']) document.getElementById(`tab-${next}`)
   document.getElementById('confirm-field').hidden = mode !== 'register';
   form.elements.confirmPassword.required = mode === 'register';
   form.elements.password.autocomplete = mode === 'register' ? 'new-password' : 'current-password';
-  document.getElementById('auth-title').textContent = mode === 'register' ? '开启你的通知库' : '欢迎回到知会';
-  document.getElementById('auth-subtitle').textContent = mode === 'register' ? '创建账号，将通知集中保存在自己名下。' : '使用邮箱和密码登录你的知会账号。';
+  document.getElementById('auth-title').textContent = mode === 'register' ? '开启你的事件库' : '欢迎回到知会';
+  document.getElementById('auth-subtitle').textContent = mode === 'register' ? '创建账号，将事件集中保存在自己名下。' : '使用邮箱和密码登录你的知会账号。';
   submit.textContent = mode === 'register' ? '创建账号并进入' : '登录知会 →';
   errorBox.hidden = true;
 });

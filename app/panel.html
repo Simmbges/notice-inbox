@@ -2,7 +2,6 @@
   <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
-    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
@@ -23,64 +22,86 @@
   <div class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="./" aria-label="知会首页"><span class="brand-mark"><svg class="icon"><use href="#i-stack"/></svg></span><span>知会<span class="brand-en">CAMPUS INBOX</span></span></a>
-      <div class="workspace-label"><span class="workspace-dot"></span> 我的校园通知库</div>
-      <p class="nav-label">查看通知</p>
-      <nav id="view-nav" aria-label="通知视图">
-        <button class="nav-item active" data-view="all"><svg class="icon"><use href="#i-grid"/></svg>全部通知<span id="nav-all" class="nav-count">0</span></button>
-        <button class="nav-item" data-view="unread"><svg class="icon"><use href="#i-mail"/></svg>未读通知<span id="nav-unread" class="nav-count">0</span></button>
+      <div class="workspace-label"><span class="workspace-dot"></span> 我的校园事件库</div>
+      <p class="nav-label">查看事件</p>
+      <nav id="view-nav" aria-label="事件视图">
+        <button class="nav-item active" data-view="all"><svg class="icon"><use href="#i-grid"/></svg>全部事件<span id="nav-all" class="nav-count">0</span></button>
         <button class="nav-item" data-view="soon"><svg class="icon"><use href="#i-clock"/></svg>即将截止<span id="nav-soon" class="nav-count">0</span></button>
         <button class="nav-item" data-view="favorites"><svg class="icon"><use href="#i-star"/></svg>我的收藏<span id="nav-favorites" class="nav-count">0</span></button>
+        <button class="nav-item" data-view="schedule"><svg class="icon"><use href="#i-clock"/></svg>事件时间表</button>
+        <button class="nav-item" data-view="tasks" data-planner-nav hidden><svg class="icon"><use href="#i-check"/></svg>个人任务</button>
+        <button class="nav-item" data-view="preferences" data-planner-nav hidden><svg class="icon"><use href="#i-edit"/></svg>时间偏好</button>
+        <button class="nav-item" data-view="review" data-planner-nav hidden><svg class="icon"><use href="#i-grid"/></svg>计划复盘</button>
       </nav>
-      <div class="category-heading"><p class="nav-label category-label">通知分类</p><button id="manage-categories" type="button" class="text-button" hidden>管理</button></div>
-      <nav id="category-nav" aria-label="通知分类"></nav>
-      <div class="sidebar-bottom"><span class="storage-dot"></span><div>通知保存在云端<small>Agent 导入后自动显示。</small></div></div>
+      <div class="category-heading"><p class="nav-label category-label">事件分类</p><button id="manage-categories" type="button" class="text-button" hidden>管理</button></div>
+      <nav id="category-nav" aria-label="事件分类"></nav>
+      <div class="sidebar-bottom"><span class="storage-dot"></span><div>事件保存在云端<small>Agent 导入后自动显示。</small></div></div>
     </aside>
 
     <main class="workspace">
-      <header class="page-header"><div><div class="eyebrow">把零散消息，整理成清楚的日常</div><h1>校园通知，一处查看<span class="title-dot">.</span></h1><p>课程、活动和校园事务，重要的事情都在这里。</p></div><div class="header-actions"><span id="today-label" class="today-label"></span><button id="add-notice" class="button primary"><svg class="icon"><use href="#i-plus"/></svg>添加通知</button></div></header>
+      <header class="page-header"><div><div class="eyebrow">把零散消息，整理成清楚的日常</div><h1>校园事件，一处查看<span class="title-dot">.</span></h1><p>课程、活动和校园事务，重要的事情都在这里。</p></div><div class="header-actions"><span id="today-label" class="today-label"></span><button id="connect-agent" class="button secondary">连接 Agent</button><button id="add-notice" type="button" class="button primary"><svg class="icon"><use href="#i-plus"/></svg>添加事件</button></div></header>
 
-      <section class="stats-grid" aria-label="通知概览">
-        <button class="stat-card" data-view="all"><span class="stat-icon purple"><svg class="icon"><use href="#i-stack"/></svg></span><span><span class="stat-label">全部通知</span><strong id="stat-all">0</strong></span><span class="stat-note">集中整理</span></button>
-        <button class="stat-card" data-view="unread"><span class="stat-icon blue"><svg class="icon"><use href="#i-mail"/></svg></span><span><span class="stat-label">尚未阅读</span><strong id="stat-unread">0</strong></span><span class="stat-note">抽空看看</span></button>
+      <section class="stats-grid" aria-label="事件概览">
+        <button class="stat-card" data-view="all"><span class="stat-icon purple"><svg class="icon"><use href="#i-stack"/></svg></span><span><span class="stat-label">全部事件</span><strong id="stat-all">0</strong></span><span class="stat-note">集中整理</span></button>
         <button class="stat-card" data-view="soon"><span class="stat-icon orange"><svg class="icon"><use href="#i-clock"/></svg></span><span><span class="stat-label">7 天内截止</span><strong id="stat-soon">0</strong></span><span class="stat-note">留意时间</span></button>
         <button class="stat-card" data-view="favorites"><span class="stat-icon green"><svg class="icon"><use href="#i-star"/></svg></span><span><span class="stat-label">我的收藏</span><strong id="stat-favorites">0</strong></span><span class="stat-note">随时回看</span></button>
+        <button class="stat-card schedule-entry-card" data-view="schedule"><span class="stat-icon blue"><svg class="icon"><use href="#i-clock"/></svg></span><span class="stat-label">事件时间表</span></button>
       </section>
 
-      <div id="demo-banner" class="demo-banner" hidden><span><span class="demo-pill">示例</span>下面的通知为自编演示内容，可以添加自己的通知开始使用。</span><button id="remove-examples" class="text-button">移除示例</button></div>
+      <div id="demo-banner" class="demo-banner" hidden><span><span class="demo-pill">示例</span>下面的事件为自编演示内容，可以添加自己的事件开始使用。</span><button id="remove-examples" class="text-button">移除示例</button></div>
 
-      <div class="sync-banner"><span id="sync-status" role="status" aria-live="polite">正在连接通知库…</span><div><button id="refresh-notices" class="text-button">立即刷新</button><button id="connect-agent" class="button secondary">连接 Agent</button></div></div>
+      <div class="sync-banner"><span id="sync-status" role="status" aria-live="polite">正在连接事件库…</span><button id="refresh-notices" class="text-button">立即刷新</button></div>
 <div id="migration-banner" class="demo-banner" hidden><span id="migration-message"></span><button id="migrate-notices" class="text-button">迁移到当前账号</button></div>
-<section class="content-layout">
+      <section id="schedule-section" class="schedule-section" aria-labelledby="schedule-heading" hidden>
+        <div class="section-heading"><div><h2 id="schedule-heading">事件时间表</h2><span class="result-count">北京时间</span></div><button id="schedule-back" class="text-button" type="button" data-view="all">查看全部事件 →</button></div>
+        <p class="schedule-intro">按时间查看活动与截止事项。点击事件可回看原文。</p>
+        <form id="schedule-range" class="schedule-toolbar">
+          <div class="schedule-presets" aria-label="快捷时间范围"><button type="button" class="range-preset active" data-days="7">未来 7 天</button><button type="button" class="range-preset" data-days="14">未来 14 天</button><button type="button" class="range-preset" data-days="30">未来 30 天</button></div>
+          <div class="schedule-dates"><label class="field">开始日期<input id="schedule-from" type="date" required></label><span class="date-separator">至</span><label class="field">结束日期<input id="schedule-to" type="date" required></label><button type="submit" class="button secondary">查看</button></div>
+          <label class="field schedule-kind">事项类型<select id="schedule-kind"><option value="all">全部事项</option><option value="event">活动</option><option value="deadline">截止事项</option></select></label>
+          <label class="field schedule-kind">重复方式<select id="schedule-type"><option value="all">全部事件</option><option value="once">一次性事件</option><option value="recurring">周期性事件</option></select></label>
+        </form>
+        <p id="schedule-error" class="schedule-error" role="alert" hidden></p>
+        <div id="schedule-summary" class="schedule-summary" role="status" aria-live="polite"></div>
+        <div id="schedule-list" class="schedule-list"></div>
+        <p id="schedule-note" class="schedule-note"></p>
+      </section>
+      <section id="planner-section" class="planner-section" hidden aria-live="polite"></section>
+<section id="notices-section" class="content-layout">
         <div class="notice-section">
-          <div class="section-heading"><div><h2 id="list-heading">全部通知</h2><span id="result-count" class="result-count"></span></div><div class="data-actions"><button id="import-button" class="icon-button backup-button" title="导入 JSON 备份" aria-label="导入 JSON 备份"><svg class="icon"><use href="#i-up"/></svg><span>导入备份</span></button><button id="export-button" class="icon-button backup-button" title="导出 JSON 备份" aria-label="导出 JSON 备份"><svg class="icon"><use href="#i-down"/></svg><span>导出备份</span></button></div></div>
-          <div class="filter-bar"><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="搜索标题、正文或发布单位" aria-label="搜索通知"></label><select id="sort" aria-label="通知排序"><option value="newest">最近添加</option><option value="deadline">截止日期优先</option><option value="oldest">最早添加</option></select></div>
+          <div class="section-heading"><div><h2 id="list-heading">全部事件</h2><span id="result-count" class="result-count"></span></div><div class="data-actions"><button id="import-button" class="icon-button backup-button" title="导入普通事件的 JSON 原文备份" aria-label="导入普通事件备份"><svg class="icon"><use href="#i-up"/></svg><span>导入原文</span></button><button id="export-button" class="icon-button backup-button" title="仅导出普通事件；日程、课表和任务请通过完整 data 文件夹备份" aria-label="导出普通事件备份"><svg class="icon"><use href="#i-down"/></svg><span>导出原文</span></button></div></div>
+          <div class="filter-bar"><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="搜索事件、课程或地点" aria-label="搜索事件"></label><select id="sort" aria-label="事件排序"><option value="newest">最近添加</option><option value="next">下次安排优先</option><option value="deadline">截止日期优先</option><option value="oldest">最早添加</option></select></div>
+          <div class="inbox-toolbar" data-planner-nav hidden><label class="field inbox-type">事件类型<select id="inbox-type"><option value="all">全部类型</option><option value="event">事件</option><option value="course">课程</option></select></label><label class="field inbox-type">重复方式<select id="inbox-repeat"><option value="all">全部</option><option value="once">不重复</option><option value="recurring">每周重复</option></select></label><label class="inline-check"><input id="inbox-cancelled" type="checkbox">显示已取消安排</label></div>
           <div id="active-filter" class="active-filter" hidden></div>
           <div id="notice-list" class="notice-list"></div>
-          <div id="empty-state" class="empty-state" hidden><span class="empty-icon"><svg class="icon"><use href="#i-folder"/></svg></span><h3 id="empty-title">还没有通知</h3><p id="empty-description">添加第一条通知，让信息有个固定的家。</p><button id="empty-action" class="button primary">添加通知</button></div>
+          <div id="empty-state" class="empty-state" hidden><span class="empty-icon"><svg class="icon"><use href="#i-folder"/></svg></span><h3 id="empty-title">还没有事件</h3><p id="empty-description">添加第一条事件，让信息有个固定的家。</p><button id="empty-action" class="button primary">添加事件</button></div>
         </div>
-        <aside id="detail-panel" class="detail-panel" aria-label="通知详情"></aside>
+        <aside id="detail-panel" class="detail-panel" aria-label="事件详情"></aside>
       </section>
       <footer class="page-footer"><span>知会 · 让重要的信息，容易找到。</span><span>Agent 导入 · 云端保存</span></footer>
     </main>
   </div>
 
-  <dialog id="notice-dialog" class="notice-dialog"><form id="notice-form">
-    <div class="dialog-heading"><div><span class="eyebrow">给消息一个清楚的位置</span><h2 id="dialog-title">添加通知</h2></div><button type="button" id="close-dialog" class="icon-button" aria-label="关闭添加窗口"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <dialog id="notice-dialog" class="notice-dialog" aria-labelledby="dialog-title"><form id="notice-form">
+    <div class="dialog-heading"><h2 id="dialog-title">添加事件</h2><button type="button" id="close-dialog" class="icon-button" aria-label="关闭事件窗口"><svg class="icon"><use href="#i-close"/></svg></button></div>
     <div class="form-fields">
-      <label class="field">通知标题 <span class="required">*</span><input name="title" required maxlength="120" placeholder="例如：本周高等数学练习提交"></label>
-      <div class="field-row"><label class="field">分类<select name="category"><option>课程学习</option><option>校园活动</option><option>竞赛报名</option><option>校园事务</option><option>其他通知</option></select></label><label class="field">发布单位<input name="sourceName" maxlength="80" placeholder="例如：课程教师、书院"></label></div>
-      <label class="field">简要说明<input name="summary" maxlength="240" placeholder="一句话说清楚需要留意什么（可选）"></label>
-      <div class="field-row"><label class="field">发布日期<input name="publishedAt" type="date"></label><label class="field">截止日期<input name="deadline" type="date"></label></div>
-      <div class="field-row"><label class="field">适用对象<input name="audience" maxlength="120" placeholder="例如：2026 级本科生"></label><label class="field">地点<input name="location" maxlength="120" placeholder="线上链接或具体地点"></label></div>
-      <label class="field">原文链接<input name="sourceUrl" type="url" maxlength="2000" placeholder="https://…（可选）"></label>
-      <label class="field">通知正文 <span class="required">*</span><textarea name="content" required maxlength="20000" rows="5" placeholder="粘贴通知原文，方便之后随时回看。"></textarea></label>
+      <label class="field">事件标题 <span class="required">*</span><input name="title" required maxlength="120" placeholder="例如：准备比赛材料、参加说明会"></label>
+      <div class="field-row"><label class="field">事件类型<select name="recordType" aria-label="事件类型"><option value="schedule">事件</option><option value="course">课程</option></select></label><label class="field">事件分类<select name="category" aria-label="事件分类"></select></label></div>
+      <div class="event-participation-section"><label class="inline-check event-participation"><input name="participation" type="checkbox">纳入我的安排</label><p class="event-rule-note">只保存公告资料时可不勾选；确定要参加或执行后再勾选。有日期的资料也会显示在时间表中。</p></div>
+      <p id="event-series-note" class="event-rule-note" hidden>这次调整的类型、分类和参加安排跟随整个系列。</p>
+      <div class="field-row"><label class="field">简要说明（可选）<textarea name="description" maxlength="240" rows="2" placeholder="记录需要留意的事情，也可以先留空。"></textarea></label>
+      <label class="field">地点（可选）<input name="location" maxlength="120" placeholder="具体地点或线上会议地址"></label></div>
+      <details id="event-time-details" class="event-source"><summary>时间安排（可选）</summary><fieldset class="event-editor"><legend>日期与重复方式</legend><p>日期未确定可以先留空。每个时间点都可单独设置重复方式。</p><div id="event-fields" class="event-fields"></div><button id="add-event" type="button" class="button secondary">＋ 添加时间点</button></fieldset></details>
+      <details id="event-source" class="event-source"><summary>原文与来源（可选）</summary><div class="field-row"><label class="field">来源<input name="sourceName" maxlength="80" placeholder="例如：课程教师、书院"></label><label class="field">原文链接<input name="sourceUrl" type="url" maxlength="2000" placeholder="https://…"></label></div><label class="field">原文或补充资料<textarea name="content" maxlength="20000" rows="4" placeholder="粘贴原文，方便以后回看；也可以留空。"></textarea></label><div id="event-extra-meta" class="field-row"><label class="field">发布日期（可选）<input name="publishedAt" type="date"></label><label class="field">适用对象（可选）<input name="audience" maxlength="120"></label></div></details>
+      <p id="event-form-error" class="planner-form-error" role="alert" hidden></p>
     </div>
-    <div class="dialog-footer"><span>未注明的日期和信息可以留空。</span><div><button type="button" id="cancel-dialog" class="button secondary">取消</button><button type="submit" class="button primary" id="save-notice">保存通知</button></div></div>
+    <div class="dialog-footer"><span>只填标题也能先保存，之后再补充。</span><div><button type="button" id="cancel-dialog" class="button secondary">取消</button><button type="submit" class="button primary" id="save-notice">保存事件</button></div></div>
   </form></dialog>
   <dialog id="category-dialog" class="notice-dialog" aria-labelledby="category-dialog-title">
-    <div class="dialog-heading"><div><span class="eyebrow">按自己的习惯整理通知</span><h2 id="category-dialog-title">管理通知分类</h2></div><button id="close-categories" type="button" class="icon-button" aria-label="关闭分类管理">×</button></div>
-    <div class="form-fields"><p class="category-description">新增或重命名分类后，可在通知表单和 Agent 中使用。删除分类会将其中的通知移到“其他通知”，保留原文。</p><form id="category-form" class="category-create"><label class="field">新分类名称<input id="category-name" required maxlength="30" placeholder="例如：奖学金、实习招聘"></label><button type="submit" class="button primary">添加分类</button></form><div id="category-list" class="category-manager-list"></div></div>
+    <div class="dialog-heading"><div><span class="eyebrow">按自己的习惯整理事件</span><h2 id="category-dialog-title">管理事件分类</h2></div><button id="close-categories" type="button" class="icon-button" aria-label="关闭分类管理">×</button></div>
+    <div class="form-fields"><p class="category-description">新增或重命名分类后，可在事件表单和 Agent 中使用。删除分类会将其中的事件移到“其他事件”，保留原文。</p><form id="category-form" class="category-create"><label class="field">新分类名称<input id="category-name" required maxlength="30" placeholder="例如：奖学金、实习招聘"></label><button type="submit" class="button primary">添加分类</button></form><div id="category-list" class="category-manager-list"></div></div>
   </dialog>
   <input id="import-file" type="file" accept=".json,application/json" hidden>
+  <dialog id="planner-dialog" class="notice-dialog planner-dialog" aria-labelledby="planner-dialog-title"></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-message"></span><button id="undo-button" type="button" hidden>撤销</button></div>
-<dialog id="agent-dialog" class="notice-dialog"><div class="dialog-heading"><div><span class="eyebrow">一次连接，直接入库</span><h2>连接你的 Agent</h2></div><button id="close-agent" class="icon-button" aria-label="关闭连接说明">×</button></div><div class="form-fields agent-help"><p>在支持 MCP 的 Agent 中添加下面的服务地址，并用当前账号完成授权。连接后，把通知发给 Agent，说“整理并导入知会”，即可直接保存。</p><label class="field">服务地址<input id="mcp-address" readonly aria-label="MCP 服务地址"></label><button id="copy-mcp" class="button secondary">复制服务地址</button><p>面板每 5 秒自动检查新通知。日期不确定时保持为空，通知原文会保留；重复通知会跳过。</p><p class="connection-note">连小理能否连接，需要它支持自定义 MCP 服务。仅生成文字或 JSON 不代表已入库，以工具返回的保存编号为准。</p></div></dialog>
+<dialog id="agent-dialog" class="notice-dialog"><div class="dialog-heading"><div><span class="eyebrow">一次连接，直接入库</span><h2>连接你的 Agent</h2></div><button id="close-agent" class="icon-button" aria-label="关闭连接说明">×</button></div><div class="form-fields agent-help"><p>在支持 MCP 的 Agent 中添加下面的服务地址，并用当前账号完成授权。连接后，把事件发给 Agent，说“整理并导入知会”，即可直接保存。</p><label class="field">服务地址<input id="mcp-address" readonly aria-label="MCP 服务地址"></label><button id="copy-mcp" class="button secondary">复制服务地址</button><p>面板每 5 秒自动检查新事件。日期不确定时保持为空，事件原文会保留；重复事件会跳过。</p><p class="connection-note">连小理能否连接，需要它支持自定义 MCP 服务。仅生成文字或 JSON 不代表已入库，以工具返回的保存编号为准。</p></div></dialog>

@@ -70,12 +70,12 @@ test('Windows 解压即用包：真实 CMD 启动、端口避让、重复启动�
     }, body: body ? JSON.stringify(body) : undefined });
     return { status: response.status, cookie: response.headers.get('set-cookie')?.split(';')[0], body: await response.text() };
   };
-  let cookie, readerToken;
+  let cookie, readerToken, plannerToken;
   await t.test('仅监听本机，避开其他服务，实际页面与资源可以访问', async () => {
     assert.notEqual(new URL(origin).port, String(blocker.address().port));
     assert.equal((await call('/healthz')).status, 200);
     assert.equal((await call('/login')).status, 200);
-    for (const file of ['/app.js', '/styles.css', '/account.js']) assert.equal((await call(file)).status, 200);
+    for (const file of ['/app.js', '/styles.css', '/account.js', '/planner.js', '/planner.css', '/event-rules.js']) assert.equal((await call(file)).status, 200);
     assert.equal(await (await fetch(`http://127.0.0.1:${blocker.address().port}`)).text(), 'other-service');
     const sqlite = new DatabaseSync(databaseFile);
     assert.equal(sqlite.prepare('SELECT count(*) AS n FROM users').get().n, 0);
@@ -113,12 +113,26 @@ test('Windows 解压即用包：真实 CMD 启动、端口避让、重复启动�
     assert.equal(key.status, 200); assert.equal(JSON.parse(key.body).permission, 'read_import');
     readerToken = JSON.parse(key.body).token;
     const discovered = await call('/mcp', { token: readerToken, body: { jsonrpc: '2.0', id: 1, method: 'tools/list' } });
-    assert.deepEqual(JSON.parse(discovered.body).result.tools.map(tool => tool.name), ['import_notices', 'list_notices', 'get_notice']);
+    assert.deepEqual(JSON.parse(discovered.body).result.tools.map(tool => tool.name), ['import_notices', 'list_notices', 'get_notice', 'list_events', 'list_tasks', 'get_preferences', 'review_period']);
     const searched = await call('/api/agent/notices?query=' + encodeURIComponent('启动包测试'), { token: readerToken });
     assert.equal(searched.status, 200); assert.equal(JSON.parse(searched.body).total, 1);
     const id = JSON.parse(searched.body).notices[0].id;
     const original = await call('/mcp', { token: readerToken, body: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_notice', arguments: { id } } } });
     assert.equal(JSON.parse(original.body).result.structuredContent.notice.content, '这是临时测试，不是真实校园通知。');
+  });
+  await t.test('实际启动包支持管理密钥、周期课表、任务和偏好', async () => {
+    const key = JSON.parse((await call('/api/agent-keys', { cookie, body: { name: '启动包时间管理测试', permission: 'manage' } })).body);
+    assert.equal(key.permission, 'manage'); plannerToken = key.token;
+    const tool = async (name, args) => {
+      const result = JSON.parse((await call('/mcp', { token: plannerToken, body: { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args } } })).body).result;
+      assert.equal(result.isError, false); return result.structuredContent;
+    };
+    await tool('import_events', { events: [{ title: '启动包周期课程', date: '2026-10-19', time: '10:00', endTime: '11:00', recurrence: { until: '2026-11-02', weekdays: [1] } }] });
+    const expanded = await tool('list_events', { from: '2026-10-19', to: '2026-11-02', type: 'recurring' });
+    assert.equal(expanded.total, 3);
+    const created = await tool('create_task', { task: { title: '启动包个人任务', dueDate: '2026-10-25' } });
+    await tool('update_task', { id: created.task.id, expectedVersion: created.task.version, patch: { status: 'done' } });
+    await tool('update_preferences', { expectedVersion: 0, patch: { dailyCapacityMinutes: 90, semesterStart: '2026-10-19' } });
   });
   await t.test('停止后重启仍保留账号、会话、通知和访问端口', async () => {
     const stopped = execFileSync(process.env.ComSpec, ['/d', '/s', '/c', `""${join(packageRoot, '停止知会.cmd')}""`], {
@@ -133,5 +147,8 @@ test('Windows 解压即用包：真实 CMD 启动、端口避让、重复启动�
     assert.equal((await call('/api/account', { cookie })).status, 200);
     assert.equal(JSON.parse((await call('/api/notices', { cookie })).body).notices.length, 1);
     assert.equal((await call('/api/agent/notices', { token: readerToken })).status, 200);
+    assert.equal(JSON.parse((await call('/api/agent/preferences', { token: plannerToken })).body).dailyCapacityMinutes, 90);
+    assert.equal(JSON.parse((await call('/api/agent/tasks', { token: plannerToken })).body).tasks[0].status, 'done');
+    assert.equal(JSON.parse((await call('/api/events?from=2026-10-19&to=2026-11-02&type=recurring', { cookie })).body).total, 3);
   });
 });

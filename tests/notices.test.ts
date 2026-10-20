@@ -91,3 +91,44 @@ test("登录、跨站请求和请求体大小边界", async () => {
   const request = new Request("https://notice.test/api/notices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ padding: "x".repeat(2 * 1024 * 1024) }) });
   await assert.rejects(readJSON(request), /2 MB/);
 });
+
+test("统一事件只有标题必填，类型与参与状态严格校验", () => {
+  const saved = normalizeNotice({ title: "以后再安排" });
+  assert.equal(saved.content, ""); assert.deepEqual(saved.events, []);
+  assert.equal(saved.recordType, "schedule"); assert.equal(saved.participation, "reference"); assert.equal(saved.active, true);
+  for (const patch of [{ title: "" }, { recordType: "recurring" }, { recordType: null }, { participation: "yes" }, { participation: null }, { active: "false" }, { active: null }]) assert.throws(() => normalizeNotice({ title: "测试", ...patch }));
+});
+
+test("空原文事件按时间去重，不同日期可共存；有原文的历史去重保持不变", async () => {
+  const { db, close } = database();
+  try {
+    const input = (date: string) => ({ title: "项目讨论", events: [{ title: "项目讨论", date }] });
+    const first = await importNotices(db, "alice", [input("2026-10-21"), input("2026-10-22")]);
+    assert.equal(first.imported, 2);
+    const repeated = await importNotices(db, "alice", [{ ...input("2026-10-21"), participation: "planned", recordType: "course" }]);
+    assert.equal(repeated.skipped, 1); assert.equal(repeated.duplicates[0].id, first.created[0].id);
+    const source = { ...notice(), events: [{ title: "展示", date: "2026-10-21" }] };
+    assert.equal((await importNotices(db, "alice", [source])).imported, 1);
+    assert.equal((await importNotices(db, "alice", [{ ...source, events: [{ title: "展示", date: "2026-10-22" }] }])).skipped, 1);
+    assert.equal((await listNotices(db, "alice")).length, 3);
+    assert.equal((await importNotices(db, "bob", [input("2026-10-21")])).imported, 1);
+  } finally { close(); }
+});
+
+test("读取返回最新修改版本，过期编辑不能覆盖新时间，旧客户端仍可部分修改", async () => {
+  const { db, close } = database();
+  try {
+    const saved = (await importNotices(db, "alice", [{ ...notice(), events: [{ title: "会议", date: "2026-10-21" }] }])).created[0];
+    const first = (await listNotices(db, "alice"))[0];
+    assert.ok(Number.isSafeInteger(first.updatedAt));
+    const updated = await updateNotice(db, "alice", saved.id, { events: [{ title: "会议", date: "2026-10-22" }] }, undefined, first.updatedAt);
+    assert.ok(updated.updatedAt > first.updatedAt!);
+    await assert.rejects(updateNotice(db, "alice", saved.id, { title: "旧编辑", events: first.events }, undefined, first.updatedAt), { status: 409 });
+    const latest = (await listNotices(db, "alice"))[0];
+    assert.equal(latest.updatedAt, updated.updatedAt); assert.equal(latest.events[0].date, "2026-10-22"); assert.equal(latest.title, first.title);
+    for (const version of [null, "1", 1.5, -1, Number.MAX_SAFE_INTEGER + 1, NaN]) await assert.rejects(updateNotice(db, "alice", saved.id, { title: "不应写入" }, undefined, version), { status: 400 });
+    await updateNotice(db, "alice", saved.id, { favorite: true });
+    assert.equal((await listNotices(db, "alice"))[0].favorite, true);
+    await assert.rejects(updateNotice(db, "bob", saved.id, { title: "跨账号" }, undefined, latest.updatedAt), { status: 404 });
+  } finally { close(); }
+});

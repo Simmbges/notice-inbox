@@ -83,7 +83,7 @@ test('独立版邮箱登录、Agent 密钥和通知库的真实 HTTP 流程', as
       const rpc = (method, params = {}) => ({ jsonrpc: '2.0', id: 1, method, params });
       assert.equal((await site.call('/mcp', { method: 'POST', body: rpc('tools/list') })).status, 401);
       const init = await site.call('/mcp', { method: 'POST', token: key.token, body: rpc('initialize') });
-      assert.equal(init.body.result.serverInfo.version, '2.1.0');
+      assert.equal(init.body.result.serverInfo.version, '3.0.0');
       const tools = await site.call('/mcp', { method: 'POST', token: key.token, body: rpc('tools/list') });
       assert.deepEqual(tools.body.result.tools.map(t => t.name), ['import_notices']);
       const called = await site.call('/mcp', { method: 'POST', token: key.token, body: rpc('tools/call', { name: 'import_notices', arguments: { notices: [{ ...notice, title: 'MCP 通知' }] } }) });
@@ -162,8 +162,8 @@ test('Agent 查询与权限：真实 HTTP/MCP 搜索、原文、日期窗口和�
     await t.test('按授权发现工具：只读不能写，仅导入不能读，无效权限被拒绝', async () => {
       const names = async key => (await rpc(key, 'tools/list')).body.result.tools.map(tool => tool.name);
       assert.deepEqual(await names(imported), ['import_notices']);
-      assert.deepEqual(await names(read), ['list_notices', 'get_notice']);
-      assert.deepEqual(await names(both), ['import_notices', 'list_notices', 'get_notice']);
+      assert.deepEqual(await names(read), ['list_notices', 'get_notice', 'list_events', 'list_tasks', 'get_preferences', 'review_period']);
+      assert.deepEqual(await names(both), ['import_notices', 'list_notices', 'get_notice', 'list_events', 'list_tasks', 'get_preferences', 'review_period']);
       assert.equal((await site.call('/api/agent/notices', { token: imported.token })).status, 403);
       assert.equal((await tool(imported, 'get_notice', { id: firstId })).body.error.code, -32602);
       assert.equal((await site.call('/api/agent/notices', { method: 'POST', token: read.token, body: { notices } })).status, 403);

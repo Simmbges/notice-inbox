@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -10,6 +11,7 @@ import { createAuth } from './auth.mjs';
 import { agentImport, handleMcp } from './mcp.mjs';
 import { agentGet, agentList } from './agent-notices.mjs';
 import { createCategoryStore } from './categories.mjs';
+import { createPlanner } from './planner-api.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = path => readFileSync(resolve(root, path), 'utf8');
@@ -29,13 +31,17 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
   const { sqlite, db } = database;
   const auth = createAuth(sqlite, secure, cookieSuffix);
   const categoryStore = createCategoryStore(sqlite);
+  const planner = createPlanner(sqlite);
   const panel = read('app/panel.html')
-    .replace('通知保存在云端', '通知保存在部署机器')
+    .replace('事件保存在云端', '事件保存在部署机器')
     .replace('Agent 导入 · 云端保存', 'Agent 导入 · 服务端保存')
     .replace('<main class="workspace">', '<main class="workspace"><div class="account-bar"><span id="account-email">正在读取账号…</span><button id="logout-account" class="text-button">退出登录</button></div>');
-  const page = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6156d9"><title>知会 · 校园通知整理</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/account.css"><link rel="stylesheet" href="/desktop.css"><link rel="stylesheet" href="/key-dialog.css"><script src="/app.js" defer></script><script src="/account.js" defer></script></head><body data-auth="email">${panel}${read('standalone/public/key-dialog.html')}</body></html>`;
+  const page = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6156d9"><title>知会 · 校园事件整理</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/account.css"><link rel="stylesheet" href="/desktop.css"><link rel="stylesheet" href="/key-dialog.css"><link rel="stylesheet" href="/schedule.css"><link rel="stylesheet" href="/planner.css"><link rel="stylesheet" href="/event-editor.css"><script src="/event-rules.js" defer></script><script src="/schedule.js" defer></script><script src="/event-editor.js" defer></script><script src="/planner.js" defer></script><script src="/app.js" defer></script><script src="/account.js" defer></script></head><body data-auth="email">${panel}${read('standalone/public/key-dialog.html')}</body></html>`;
   const staticFiles = new Map([
     ['/app.js', ['public/app.js', 'text/javascript']], ['/styles.css', ['public/styles.css', 'text/css']],
+    ['/schedule.js', ['public/schedule.js', 'text/javascript']], ['/schedule.css', ['public/schedule.css', 'text/css']],
+    ['/event-editor.js', ['public/event-editor.js', 'text/javascript']], ['/event-editor.css', ['public/event-editor.css', 'text/css']],
+    ['/event-rules.js', ['public/event-rules.js', 'text/javascript']], ['/planner.js', ['public/planner.js', 'text/javascript']], ['/planner.css', ['public/planner.css', 'text/css']],
     ['/login.js', ['standalone/public/login.js', 'text/javascript']], ['/account.js', ['standalone/public/account.js', 'text/javascript']],
     ['/account.css', ['standalone/public/account.css', 'text/css']],
     ['/desktop.css', ['public/desktop.css', 'text/css']], ['/key-dialog.css', ['standalone/public/key-dialog.css', 'text/css']],
@@ -95,10 +101,33 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
     if (method === 'GET' && detail) {
       const { owner } = auth.agent(request.headers, 'read');
       let id;
-      try { id = decodeURIComponent(detail[1]); } catch { throw new InputError('通知编号编码不正确。'); }
+      try { id = decodeURIComponent(detail[1]); } catch { throw new InputError('事件编号编码不正确。'); }
       return json(await agentGet(db, owner, { id }));
     }
-    if (pathname === '/mcp') return method === 'POST' ? handleMcp(request, auth, db, categoryStore) : json({ error: 'MCP 入口仅支持 POST。' }, 405);
+    if (pathname === '/mcp') return method === 'POST' ? handleMcp(request, auth, db, categoryStore, planner) : json({ error: 'MCP 入口仅支持 POST。' }, 405);
+
+    const plannerPaths = ['/api/events', '/api/event-rules', '/api/event-occurrence', '/api/tasks', '/api/preferences', '/api/review'];
+    const plannerPath = pathname.replace('/api/agent/', '/api/');
+    if (plannerPaths.includes(plannerPath)) {
+      const agentRequest = pathname.startsWith('/api/agent/');
+      const identity = agentRequest ? auth.agent(request.headers) : { owner: auth.user(request.headers).id, permission: 'manage' };
+      const query = Object.fromEntries(searchParams);
+      for (const key of ['limit', 'offset']) if (key in query) query[key] = Number(query[key]);
+      const body = method === 'GET' ? query : await bodyJSON(request);
+      let name;
+      if (plannerPath === '/api/events') name = { GET: 'list_events', POST: 'import_events', PATCH: 'update_event' }[method];
+      if (plannerPath === '/api/event-occurrence' && method === 'PATCH') name = 'change_event_occurrence';
+      if (plannerPath === '/api/tasks') name = { GET: 'list_tasks', POST: 'create_task', PATCH: 'update_task' }[method];
+      if (plannerPath === '/api/preferences') name = { GET: 'get_preferences', PATCH: 'update_preferences' }[method];
+      if (plannerPath === '/api/review' && method === 'GET') name = 'review_period';
+      if (plannerPath === '/api/event-rules' && method === 'GET') {
+        if (!planner.tools(identity.permission).some(tool => tool.name === 'list_events')) throw new InputError('此密钥没有查询权限。', 403);
+        return json({ events: planner.events.list(identity.owner) });
+      }
+      if (!name) return json({ error: '不支持该请求方法。' }, 405);
+      if (!planner.tools(identity.permission).some(tool => tool.name === name)) throw new InputError('此密钥没有相应时间管理权限。', 403);
+      return json(planner.call(identity.owner, name, body));
+    }
 
     if (pathname === '/api/categories') {
       const owner = auth.user(request.headers).id;
@@ -122,10 +151,10 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
     }
     if (pathname === '/api/notices') {
       const owner = auth.user(request.headers).id;
-      if (method === 'GET') return json({ notices: await listNotices(db, owner), categories: categoryStore.list(owner) });
+      if (method === 'GET') return json({ notices: await listNotices(db, owner), categories: categoryStore.list(owner), scheduleCategory: categoryStore.defaultCategory(owner), courseCategory: categoryStore.defaultCategory(owner, 'course'), eventRules: planner.events.overview(owner) });
       const body = await bodyJSON(request);
       if (method === 'POST') return json(await importNotices(db, owner, body.notices, 'manual', () => categoryStore.list(owner)));
-      if (method === 'PATCH') return json({ notice: await updateNotice(db, owner, body.id, body.patch, () => categoryStore.list(owner)) });
+      if (method === 'PATCH') return json({ notice: await updateNotice(db, owner, body.id, body.patch, () => categoryStore.list(owner), body.expectedUpdatedAt) });
       await deleteNotices(db, owner, body.ids); return json({ ok: true });
     }
     return json({ error: '页面不存在。' }, 404);
@@ -147,7 +176,7 @@ export function createApplication({ databaseFile, origin, trustProxy = false, co
     outgoing.statusCode = response.status;
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   };
-  return { handler, database };
+  return { handler, database, planner };
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
@@ -158,6 +187,13 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   const app = createApplication({ databaseFile: resolve(process.env.DATA_DIR || resolve(root, 'data'), 'notice-inbox.sqlite'), origin, trustProxy: process.env.TRUST_PROXY === 'true' });
   const server = createServer(app.handler);
   server.requestTimeout = 20000; server.headersTimeout = 10000;
-  server.listen(port, process.env.HOST || '127.0.0.1', () => console.log(`知会独立版已启动：${origin}\n邮箱登录 · 数据保存在部署机器 · Agent 密钥导入`));
+  server.listen(port, process.env.HOST || '127.0.0.1', () => {
+    console.log(`知会独立版已启动：${origin}\n邮箱登录 · 数据保存在部署机器 · Agent 密钥导入`);
+    if (process.platform === 'win32' && process.argv.includes('--open-browser') && !process.argv.includes('--no-browser')) {
+      const browser = spawn(resolve(process.env.SystemRoot || 'C:\\Windows', 'explorer.exe'), [origin], { windowsHide: true, stdio: 'ignore' });
+      browser.on('error', () => console.log(`浏览器未能自动打开，请访问：${origin}`));
+      browser.unref();
+    }
+  });
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => { app.database.close(); process.exit(0); }));
 }

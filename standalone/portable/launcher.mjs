@@ -64,7 +64,7 @@ async function start() {
     }
     site?.database.close();
     control.close();
-    console.log('知会已停止，账号和通知已保留在 data 文件夹。');
+    console.log('知会已停止，账号和事件已保留在 data 文件夹。');
   }
 
   try { await listen(control, controlPath); }
@@ -106,7 +106,7 @@ async function start() {
 
 try {
   if (process.argv.includes('--stop')) {
-    try { await contactRunning('stop'); console.log('已发送停止请求，账号和通知会保留在 data 文件夹。'); }
+    try { await contactRunning('stop'); console.log('已发送停止请求，账号和事件会保留在 data 文件夹。'); }
     catch (error) { if (!['ENOENT', 'ECONNREFUSED'].includes(error.code)) throw error; console.log('这个启动包当前没有运行。'); }
   } else await start();
 } catch (error) {

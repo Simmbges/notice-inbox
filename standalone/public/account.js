@@ -3,12 +3,13 @@ const accountElement = id => document.getElementById(id);
 let keyLoading = false;
 let newKeyPermission = 'import';
 const dayText = value => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
-const permissionText = value => ({ import: '仅导入', read: '仅查询', read_import: '查询＋导入' })[value] || '仅导入';
+const permissionText = value => ({ import: '仅导入', read: '仅查询', read_import: '查询＋导入', manage: '时间管理' })[value] || '仅导入';
 function updatePermissionHelp() {
   accountElement('key-permission-help').textContent = {
-    import: '仅导入：让 Agent 保存你发来的通知，不能读取通知库。',
-    read: '仅查询：让 Agent 搜索通知和读取原文，不能写入。',
-    read_import: '查询＋导入：允许读取当前账号的通知及原文，也能保存新通知。',
+    import: '仅导入：让 Agent 保存你发来的事件，不能读取事件库。',
+    read: '仅查询：可读取事件、事件时间表、个人任务、偏好与复盘，不能写入。',
+    read_import: '查询＋导入：可读取当前账号的事件和时间管理数据，也能保存新事件；不能修改课程、任务或偏好。',
+    manage: '时间管理：可读取、保存和调整个人任务、一次性日程、周期课表与偏好，也可更新事件时间事项；保留事件原文。仅授予可信 Agent。',
   }[accountElement('key-permission').value];
 }
 function switchKeyPanel(id) {
@@ -94,8 +95,9 @@ accountElement('copy-key-address').addEventListener('click', async () => {
 accountElement('copy-key-config').addEventListener('click', async () => {
   const token = accountElement('new-key-token').value;
   if (!token) return;
-  const tools = newKeyPermission === 'import' ? 'import_notices' : newKeyPermission === 'read' ? 'list_notices、get_notice' : 'import_notices、list_notices、get_notice';
-  const prompt = `请把知会连接到当前 Agent，保留其他已有配置。\n服务地址：${accountElement('key-mcp-address').value}\n传输方式：Streamable HTTP\n认证方式：Bearer Token\n密钥：${token}\n权限：${permissionText(newKeyPermission)}；工具：${tools}。\n安全保存密钥，不在回答或项目文件中复述。验证初始化和工具发现，不要为了测试而写入通知，不要扩大权限。\n连接成功后使用 zhihui-notices skill；缺少 skill 时告诉我安装位置。区分配置已写入、连接成功、当前会话已加载工具。`;
+  const reads = 'list_notices、get_notice、list_events、list_tasks、get_preferences、review_period';
+  const tools = newKeyPermission === 'import' ? 'import_notices' : newKeyPermission === 'read' ? reads : newKeyPermission === 'read_import' ? 'import_notices、' + reads : 'import_notices、' + reads + '、import_events、update_event、change_event_occurrence、update_notice_events、create_task、update_task、update_preferences';
+  const prompt = `请把知会连接到当前 Agent，保留其他已有配置。\n服务地址：${accountElement('key-mcp-address').value}\n传输方式：Streamable HTTP\n认证方式：Bearer Token\n密钥：${token}\n权限：${permissionText(newKeyPermission)}；工具：${tools}。\n安全保存密钥，不在回答或项目文件中复述。验证初始化和工具发现，不要为了测试而写入事件，不要扩大权限。\n连接成功后使用 zhihui-notices skill；缺少 skill 时告诉我安装位置。区分配置已写入、连接成功、当前会话已加载工具。`;
   try { await navigator.clipboard.writeText(prompt); accountElement('key-message').textContent = '配置提示词已复制（包含密钥），请只发给可信的 Agent。'; }
   catch { accountElement('new-key-token').select(); accountElement('key-message').textContent = '浏览器无法复制提示词，请手动复制地址和选中的密钥。'; }
 });
