@@ -36,6 +36,8 @@
 
 适用于 Windows 10 / 11 x64，无需安装 Node.js、npm 或 Docker，也无需云端账号。
 
+仓库源码不包含 `releases/` 和独立部署 ZIP。若从 GitHub 下载源码，请按下方“从源码运行”直接启动，或自行构建启动包；维护者发布后，也可从仓库的 Releases 下载启动包附件。
+
 1. 完整解压 `releases/zhihui-windows-x64.zip`，不要在压缩包内直接运行。
 2. 打开“知会本地版”文件夹，双击“启动知会.cmd”，程序会自动打开浏览器。
 3. 首次使用注册邮箱账号。使用期间保留启动窗口，停止时双击“停止知会.cmd”，或在启动窗口按 Ctrl+C。
@@ -104,7 +106,7 @@ MCP 导入和查询也支持当前账号的分类；当前工具 schema 和查�
 
 ## 个人时间管理与截图课表
 
-**全部事件**统一显示普通事件、日程和课程，通过分类颜色、类型标签、时间及地点区分。类型筛选可单独查看课程、一次性日程或周期性日程。每个周期系列只占一张卡片，展示重复规则和下一次安排；事件统计也按卡片数计算，不按整个学期展开的课次数计算。点击侧栏“日程”或“课程”可分别查看默认归入对应分类的安排，调整分类后会出现在对应分类。收藏也支持日程和课程系列。
+**全部事件**统一显示事件和课程，通过分类颜色、类型标签、时间及地点区分。类型筛选可选择事件或课程，重复方式筛选独立选择不重复或每周重复。每个周期系列只占一张卡片，展示重复规则和下一次安排；事件统计也按卡片数计算，不按整个学期展开的课次数计算。点击侧栏“日程”或“课程”可分别查看默认归入对应分类的安排，调整分类后会出现在对应分类。收藏也支持日程和课程系列。
 
 页面顶部“添加事件”直接打开同一个表单，添加普通事件与日程不再分入口。只填标题即可保存，时间、原文、来源及地点均可空；需要时再添加多个时间点、分别设置重复方式，并选择“事件／课程”和“资料信息／纳入我的安排”。已有个人日程也使用这个表单编辑，保留原编号和单次调课规则；旁边的“连接 Agent”用于管理 MCP 连接和密钥。
 
@@ -197,24 +199,20 @@ skill 会实时查询并按需读取原文；“最近”默认含今天的未�
 
 ## 部署
 
-项目附带 `notice-inbox-standalone.zip` 独立部署包和 `standalone/` 下的 Docker Compose、Caddy 配置。部署到自己的服务器需要域名、Docker Compose 和持久存储，具体步骤见 [运行和部署说明](./standalone/DEPLOY.md)。
+源码包含 `standalone/` 下的 Docker Compose、Caddy 配置，完整源码也可用于独立部署。`notice-inbox-standalone.zip` 是单独分发的部署附件，不随 Git 源码提交。部署到自己的服务器需要域名、Docker Compose 和持久存储，具体步骤见 [运行和部署说明](./standalone/DEPLOY.md)。
 
 当前尚未部署独立公网版本，也未实际构建 Docker 容器或申请 HTTPS 证书。原 `chatgpt.site` 网站仍是使用 OpenAI 登录的旧托管版，账号和数据与独立邮箱版互不自动同步。
 
 ## 验证
 
 ```powershell
-node --test standalone/server.test.mjs
-node --test tests/notices.test.ts
-node --test tests/zhihui-skill.test.mjs
-node --test tests/notice-events.test.mjs tests/schedule-view.test.mjs
-node --test tests/event-store.test.mjs tests/task-store.test.mjs tests/planner-api.test.mjs tests/planner-ui.test.mjs tests/schedule-fetch.test.mjs
-node --test standalone/categories.test.mjs
-node --test standalone/dev.test.mjs
+node --test tests/*.test.mjs tests/*.test.ts standalone/*.test.mjs
 node --check public/app.js
 ```
 
 已有测试覆盖注册登录、会话、账号隔离、Agent 导入、去重、密钥过期与撤销、重启后持久化和跨站写入防护，使用临时数据库，不修改实际用户数据。此前已通过上述测试，并完成网页自动显示导入事件及 Codex 本地连接验证。
+
+上传前检查结果、依赖安全项和发布附件说明见 [GitHub 上传前检查](./GITHUB_UPLOAD_CHECK.md)。
 
 ## 源码结构
 
@@ -236,6 +234,8 @@ node --check public/app.js
 ## 原 Sites 托管版开发
 
 以下命令仅用于维护原托管版，不是独立邮箱版的启动步骤。要求 Node.js >= 22.13.0。
+
+2026-10-20 的 `npm audit` 报告原托管版及开发工具链有 30 个受影响依赖包，其中 1 个严重、21 个高危；这些依赖尚未升级，使用此路径对外部署前应先修复并回归验证。独立邮箱版通过 Node.js 24 直接运行，不加载这套 npm 依赖。详见上传前检查记录。
 
 ```powershell
 npm run install:ci

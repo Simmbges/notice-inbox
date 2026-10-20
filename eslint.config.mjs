@@ -12,6 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local caches, test artifacts, and release copies are not project sources.
+    ".sites-local/**",
+    ".sites-runtime/**",
+    ".wrangler/**",
+    ".vinext/**",
+    "releases/**",
+    "data/**",
+    "qa/**",
+    "coverage/**",
   ]),
   {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
